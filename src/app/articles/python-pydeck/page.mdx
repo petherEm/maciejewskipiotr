@@ -1,0 +1,128 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/py_pydeck_2.webp'
+import Image_2 from '@/images/blog/py_pydeck_5.webp'
+import Image_3 from '@/images/blog/py_pydeck_9.webp'
+
+export const article = {
+  author: 'Piotr',
+  date: '2023-02-12',
+  tags: ['Python', 'Data Science'],
+  title: 'Pydeck, Python data visualization. Column Layer on Carto maps.',
+  description:
+    'Exploring deck.gl geo data visualisation capabilities with Python and pandas library. Deck.gl is a WebGL-powered visualization framework for large-scale datasets, and pydeck is a high-scale spatial rendering for Python (powered by deck.gl).',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+I will be exploring _`deck.gl`_ geo data visualisation capabilities with Python and pandas library. Deck.gl is a **WebGL-powered** visualization framework for large-scale datasets, and **[pydeck](https://pydeck.gl/)** is a high-scale spatial rendering for Python (powered by deck.gl).
+
+Want to read it on Medium? [Click here](https://medium.com/@pether.maciejewski/pydeck-python-data-visualization-column-layer-on-carto-maps-58a013fe940d)
+
+## LET'S GET STARTED
+
+For this project, I am using [Jupyter Notebook](https://jupyter.org/) — the original web application for creating and sharing computational documents. It offers a simple, streamlined, document-centric experience.
+
+The key Python library for this project is pydeck. By default, pydeck 0.6 provides basemap tiles through Carto. You can optionally use Mapbox API key, by registering for Mapbox. But, the Carto map is enough for this project.
+
+Let's import _`pydeck`_ via **pip**:
+
+```python
+pip install pydeck
+```
+
+I prepared the data set of random store sales in 2020 across Estonia (_a totally randomized dataset_).
+
+1. We start by importing essential Python libraries for our operations: **pandas, pydeck, os** and optionally **matplotlib.pyplot** (I may develop this post in future)
+
+```python
+  import pandas as pd
+  import pydeck as pdk
+  from pydeck.types import String
+  import matplotlib.pyplot as plt
+  import os
+```
+
+2. Let’s list the files in the current directory and check if our .xlsx data source is stored here. We then import .xlsx data to [Pandas Dataframe](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) and set the index to store location name (in our case, numeric id).
+
+```python
+  os.listdir() ## checking the current file composition of the folder
+  df = pd.read_excel('stores.xlsx') ## reading .xlsx file to Pandas DataFrame
+  df.set_index('Location Name') ## setting indexing to store's name
+```
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+3. We check the current columns of pandas DataFrame
+
+```python
+  df.columns
+  # output
+  # Index(['Location Name', 'Address line 1', 'Address line 2', 'Address line 3',
+  #    'City Name', 'Latitude', 'Longitude', 'Lat', 'Long', 'Postal Code',
+  #      'Results'],
+  #     dtype='object')
+```
+
+4. and create new dataFrame **df2** extracting the info we may need.
+
+```python
+  df2 = df[['Location Name', 'City Name', 'Latitude', 'Longitude', 'Lat', 'Long', 'Postal Code', 'Results']]
+  df2
+```
+
+5. New **df2** DataFrame would look like this:
+
+<Image src={Image_2} width={800} height={400} alt="" />
+
+6. We ensure that **longitude** and **latitude** are of the **‘float’** type readable by pydeck class.
+
+```python
+  df2["Long"] = df2["Long"].astype(float)
+  df2["Lat"] = df2["Lat"].astype(float)
+  df2
+
+```
+
+7. We create the instance of Deck class with the selection of [ColumnLayer](https://pydeck.gl/deck.html) and subsequent parameters.
+
+```python
+  layer = pdk.Layer(
+    'ColumnLayer',
+    df2,
+    get_position=['Long', 'Lat'],
+    get_elevation=["Results"],
+    auto_highlight=True,
+    elevation_scale=5,
+    pickable=True,
+    extruded=True,
+    get_radius=100,
+    get_fill_color=["Results * 10", "Results", "Results * 40", 220],
+    coverage=1
+  )
+```
+
+8. We set the initial viewport location on the geo area where we plot our data.
+
+```python
+  # Set the viewport location
+  view_state = pdk.ViewState(
+    longitude=25.336900,
+    latitude=54.734235,
+    zoom=2,
+    min_zoom=5,
+    max_zoom=15,
+    pitch=40.5,
+    bearing=-27.36)
+```
+
+9. Then we store all respective parameters in the variable, and pydeck allows us to create ultra light HTML (in this case, based on CARTO MAP) with the ColumnLayer plot of our store results.
+
+```python
+  r = pdk.Deck(layers=[layer], initial_view_state=view_state)
+  r.to_html('stores.html')
+```
+
+<Image src={Image_3} width={800} height={400} alt="" />
+
+Great! I think this was a nice and quick walk through how to use _`pydeck`_, **Carto maps** and **Pandas** library to prepare the dataset to plot on the map. I hope you enjoyed it.

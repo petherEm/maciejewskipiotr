@@ -1,0 +1,186 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/distances_1.jpeg'
+
+export const article = {
+  author: 'Piotr',
+  date: '2023-07-16',
+  tags: ['Python', 'Data Science', 'AI'],
+  title: 'GPT-4 Model help in Geo Mapping at the large scale.',
+  description:
+    'Yes, I tried GPT-4 model to help me out with some data science tasks. I was curious if it can help me in geo mapping at the large scale.',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+I had to analyse a specific business risk related to geolocation of different sales points. I had a list of addresses and I needed to find out if they are located in the area of interest. I'd like to know if GPT-4 model can help me out with this task. I would also like to see if it can help me in geo-mapping at a large scale.
+
+You can read this on **Medium** [here](https://medium.com/@pether.maciejewski/gpt-4-model-help-in-geo-mapping-with-a-large-dataset-python-e2272edf4cc5).
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+I used to do it with different geo coding libraries in the past, and this time, I decided to ask for quick help with the GPT-4 model. I was curious if it could help me out in this task and what the suggestion would be.
+
+## MY PROMPT
+
+> Act as a Senior Python Programmer and Data Scientist and help me calculating distances between the geo data points. I have 4 pandas data frames with latitudes (lat) and longitudes (lng) and would like to create new columns to df1 showing the closest point from df2 to point from df1 and its name and address, the closest point from df3 to point from df1 and its name and address and the closest location from df4 to point from df1 and its name and address. Use euclidian method and try to make the code execution the fastest possible in Python.
+
+As you can see I was specific in the preffered calculation method and I also asked for the fastest possible solution.
+
+## GPT-4 RESPONSE
+
+> I would recommend you to use geopy.distance.distance method to calculate distances between two points, and then use cKDTree in scipy.spatial library to find the closest point quickly. However, since you requested to use the Euclidean method, we will use the Euclidean distance formula, which works fine in short distances but it is not the most accurate for long distances since it doesn't account for the Earth's curvature.
+
+> Here is an optimized way using numpy arrays, pandas and scipy's cKDTree structure for your problem:
+
+```python
+
+import pandas as pd
+import numpy as np
+from scipy.spatial import cKDTree
+
+def create_kdtree(df):
+    coordinates = np.array(list(zip(df['lat'].values, df['lng'].values)))
+    return cKDTree(coordinates)
+
+# Create KDTree for each df
+tree_df2 = create_kdtree(df2)
+tree_df3 = create_kdtree(df3)
+tree_df4 = create_kdtree(df4)
+
+def find_closest(df, tree, df_info):
+    coordinates = list(zip(df['lat'].values, df['lng'].values))
+    distances, indices = tree.query(coordinates)
+    df['distance'] = distances
+    df['name'] = df_info.iloc[indices]['name'].values
+    df['address'] = df_info.iloc[indices]['address'].values
+    return df
+
+# Add closest from df2 to df1
+df1 = find_closest(df1, tree_df2, df2)
+df1.rename(columns = {'distance':'distance_df2', 'name':'name_df2', 'address':'address_df2'}, inplace = True)
+
+# Add closest from df3 to df1
+df1 = find_closest(df1, tree_df3, df3)
+df1.rename(columns = {'distance':'distance_df3', 'name':'name_df3', 'address':'address_df3'}, inplace = True)
+
+# Add closest from df4 to df1
+df1 = find_closest(df1, tree_df4, df4)
+df1.rename(columns = {'distance':'distance_df4', 'name':'name_df4', 'address':'address_df4'}, inplace = True)
+
+```
+
+> This code firstly creates a **KDTree** for each DataFrame, which is a binary tree structure allowing efficient queries for **nearest neighbours**. Then, for each point in df1, it finds the closest points in df2, df3 and df4 by querying these KDTree structures.
+
+> Please note that the distances are **Euclidean** and for points on a plane, not for geographic coordinates. If your coordinates span a significant portion of the Earth, this might give incorrect results, since the Earth's surface is not flat. To compute geographical distances accurately, the haversine formula or a library that implements it (like geopy) should be used. But as you requested Euclidean, this solution provides that.
+
+> This code assumes 'name' and 'address' columns are present in your dataframes. If the column names are different, you would need to replace those names in the code. And make sure all of your dataframes (df1, df2, df3, df4) have 'lat' and 'lng' columns for latitudes and longitudes
+
+## MY RESPONSE TO THAT
+
+> please make sure the distance is expressed in meters
+
+## GPT-4 RESPONSE
+
+> If your latitudes and longitudes span a significant portion of the Earth, Euclidean distance wouldn't be accurate since Earth's surface isn't flat. Therefore, using the Haversine formula or some library that implements it, like geopy, is the best practice.
+
+> However, since you want the Euclidean distance in meters, **we can do a simple conversion from degrees to meters. One degree of latitude is approximately 111.139 kilometers (which is 111139 meters)**. For longitude, it varies with latitude, but we can use an average value of 111.321 kilometers per degree (which is 111321 meters). But this is still not very accurate.
+
+> Here is the adjusted code:
+
+```python
+import pandas as pd
+import numpy as np
+from scipy.spatial import cKDTree
+
+def convert_degrees_to_meters(lat, lng):
+    lat *= 111139  # convert lat degrees to meters
+    lng *= 111321  # convert lng degrees to meters
+    return lat, lng
+
+def create_kdtree(df):
+    df['lat'], df['lng'] = convert_degrees_to_meters(df['lat'].values, df['lng'].values)
+    coordinates = np.array(list(zip(df['lat'].values, df['lng'].values)))
+    return cKDTree(coordinates), df
+
+# Create KDTree for each df
+tree_df2, df2 = create_kdtree(df2)
+tree_df3, df3 = create_kdtree(df3)
+tree_df4, df4 = create_kdtree(df4)
+
+def find_closest(df, tree, df_info):
+    df['lat'], df['lng'] = convert_degrees_to_meters(df['lat'].values, df['lng'].values)
+    coordinates = list(zip(df['lat'].values, df['lng'].values))
+    distances, indices = tree.query(coordinates)
+    df['distance'] = distances
+    df['name'] = df_info.iloc[indices]['name'].values
+    df['address'] = df_info.iloc[indices]['address'].values
+    return df
+
+# Add closest from df2 to df1
+df1 = find_closest(df1, tree_df2, df2)
+df1.rename(columns = {'distance':'distance_df2', 'name':'name_df2', 'address':'address_df2'}, inplace = True)
+
+# Add closest from df3 to df1
+df1 = find_closest(df1, tree_df3, df3)
+df1.rename(columns = {'distance':'distance_df3', 'name':'name_df3', 'address':'address_df3'}, inplace = True)
+
+# Add closest from df4 to df1
+df1 = find_closest(df1, tree_df4, df4)
+df1.rename(columns = {'distance':'distance_df4', 'name':'name_df4', 'address':'address_df4'}, inplace = True)
+
+
+```
+
+## MY RESPONSE TO THAT
+
+> one more correction - instead of renaming the columns of df1 just add new columns **I am getting lazy with Chat GPT**
+
+## GPT-4 RESPONSE
+
+> I understand your request. In the previous examples, renaming was used to ensure that the 'distance', 'name', and 'address' columns did not overwrite each other when calculating distances to df2, df3, and df4.
+
+> However, since you want to add new columns instead of renaming, we'll modify the function to add the data directly into the new columns. Here is the updated code:
+
+```python
+
+import pandas as pd
+import numpy as np
+from scipy.spatial import cKDTree
+
+def convert_degrees_to_meters(lat, lng):
+    lat *= 111139  # convert lat degrees to meters
+    lng *= 111321  # convert lng degrees to meters
+    return lat, lng
+
+def create_kdtree(df):
+    df['lat'], df['lng'] = convert_degrees_to_meters(df['lat'].values, df['lng'].values)
+    coordinates = np.array(list(zip(df['lat'].values, df['lng'].values)))
+    return cKDTree(coordinates), df
+
+# Create KDTree for each df
+tree_df2, df2 = create_kdtree(df2)
+tree_df3, df3 = create_kdtree(df3)
+tree_df4, df4 = create_kdtree(df4)
+
+def find_closest(df, tree, df_info, prefix):
+    df_temp = df.copy()
+    df_temp['lat'], df_temp['lng'] = convert_degrees_to_meters(df_temp['lat'].values, df_temp['lng'].values)
+    coordinates = list(zip(df_temp['lat'].values, df_temp['lng'].values))
+    distances, indices = tree.query(coordinates)
+    df_temp[f'{prefix}_distance'] = distances
+    df_temp[f'{prefix}_name'] = df_info.iloc[indices]['name'].values
+    df_temp[f'{prefix}_address'] = df_info.iloc[indices]['address'].values
+    return df_temp[[f'{prefix}_distance', f'{prefix}_name', f'{prefix}_address']]
+
+# Add closest from df2, df3, df4 to df1
+df1 = pd.concat([df1,
+                 find_closest(df1, tree_df2, df2, 'df2'),
+                 find_closest(df1, tree_df3, df3, 'df3'),
+                 find_closest(df1, tree_df4, df4, 'df4')], axis=1)
+
+```
+
+## CONCLUSION
+
+GPT-4 Model is an amazing helper in quick data tasks, analytics and data science. It is not perfect but it is very helpful. So far, I prefer to control everything and compose the code on my machine.

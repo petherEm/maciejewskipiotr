@@ -1,0 +1,161 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/Analytics_1.png'
+import Image_2 from '@/images/blog/Analytics_2.png'
+import Image_3 from '@/images/blog/Analytics_3.png'
+
+export const article = {
+  author: 'Piotr',
+  date: '2023-07-02',
+  tags: ['Next.js/JS', 'Data Science'],
+  title: 'How to add Google Analytics to your Next.js 13 app (App Router)?',
+  description:
+    'A step by step guide to add Google Analytics to your Next.js 13 app (App directory).',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+<Image src="" alt="" />
+
+## About Next.js 13 App Router
+
+Next.js is well known for its file system-based routing, however, through its app directory, Next.js 13 has changed the manner in which many tasks were previously performed.
+
+While still supporting the same file **system-based routing**, which uses the pages directory, the new app directory introduces the concepts of layouts, error components, and loading components while also **leveraging React server components** for building the UI. This has certain implications on traditional **Google Analytics script** implementation.
+
+## GETTING READY
+
+As the prerequisite, you should have a Next.js 13 app with the app directory structure and then install the 'client-only' package.
+
+```c
+npm install client-only
+```
+
+If you are using TypeScript, you should also install the types for the package.
+
+```c
+
+npm install @types/gtag.js --save-dev
+
+```
+
+## SETUP GOOGLE ANALYTICS
+
+You will need to create a Google Analytics account and then create a **new property** for your Next.js app. Once you have created the property, you will be provided with a **tracking ID** that you will need to add to your app.
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+<Image src={Image_2} width={800} height={400} alt="" />
+
+<Image src={Image_3} width={800} height={400} alt="" />
+
+## CREATE A GOOGLE ANALYTICS COMPONENT AND A HELPER FUNCTION
+
+You will need to build a Google Analytics component which will store the basic **gtag.js** code interacting with Google Analytics.
+
+Do not forget to use "use client" marker to enable client-side code execution.
+
+```c
+
+// @/components/GoogleAnalytics.js
+
+"use client";
+
+import Script from "next/script";
+import { useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { pageview } from "@/lib/gtagHelper";
+
+export default function GoogleAnalytics({ GA_MEASUREMENT_ID }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const url = pathname + searchParams.toString();
+    pageview(GA_MEASUREMENT_ID, url);
+  }, [pathname, searchParams, GA_MEASUREMENT_ID]);
+
+  return (
+    <>
+      <Script
+        strategy="afterInteractive"
+        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+      />
+      <Script
+        id="google-analytics"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+
+                gtag('consent', 'default', {
+                    'analytics_storage': 'granted'
+                });
+
+                gtag('config', '${GA_MEASUREMENT_ID}', {
+                    page_path: window.location.pathname,
+                });
+                `,
+        }}
+      />
+    </>
+  );
+}
+
+
+```
+
+Now have a look on the helper function that will be used to send the pageview event to Google Analytics.
+
+```c
+
+// lib/gtagHelper.js
+export const pageview = (GA_MEASUREMENT_ID, url) => {
+  window.gtag("config", GA_MEASUREMENT_ID, {
+    page_path: url,
+  });
+};
+
+
+```
+
+## INJECT GOOGLE ANALYTICS COMPONENT INTO THE APP LAYOUT
+
+Now you can inject the Google Analytics component into the app layout.
+
+```c
+
+import "./globals.css";
+import { Inter } from "next/font/google";
+import NavBar from "@/components/Navbar";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
+
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata = {
+  title: "Analytics testing",
+  description: "Analytics testing",
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" data-theme="dark">
+      <GoogleAnalytics GA_MEASUREMENT_ID="G-J46EGV9SRV" />
+      <body className={inter.className}>
+        <NavBar />
+        {children}
+      </body>
+    </html>
+  );
+}
+
+```
+
+## SUMMARY
+
+I hope that this article will help you to add Google Analytics to your Next.js 13 app (App Router). If you have any questions, please feel free to contact me.
+
+Happy coding!

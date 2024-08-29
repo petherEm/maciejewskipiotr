@@ -1,0 +1,357 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image_1 from '@/images/blog/ai-gib_1.webp'
+import Image_2 from '@/images/blog/ai-gib_2.webp'
+import Image from 'next/image'
+
+export const article = {
+  author: 'Piotr',
+  date: '2024-06-10',
+  tags: ['Next.js/JS', 'AI'],
+  title: 'Implementing an AI-powered Shopping Assistant.',
+  description:
+    'The Vercel AI SDK is a TypeScript library designed to assist developers in building AI-powered applications with frameworks such as React, Next.js, Vue, Nuxt, SvelteKit, and more.',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+This tutorial is part of my experiments with MedusaJS to create modern, scalable, and highly functional e-commerce platforms. Follow my journey for more insights and customizations using MedusaJS.
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+You can find [here the current repository.](https://github.com/petherEm/gibnext-storefront/tree/main)
+
+## Vercel AI SDK
+
+The Vercel AI SDK is a TypeScript library designed to assist developers in building AI-powered applications with frameworks such as React, Next.js, Vue, Nuxt, SvelteKit, and more.
+
+## Why use the Vercel AI SDK?
+
+Integrating large language models (LLMs) into applications can be complex and highly dependent on the specific model provider. The Vercel AI SDK simplifies this process by abstracting away the differences between model providers, eliminating the need for boilerplate code when building chatbots, and enabling the creation of rich, interactive components beyond mere text output.
+
+## 1 - AI SDK Core
+
+**A unified API for generating text, structured objects, and tool calls with LLMs**
+
+LLMs are advanced programs that can understand, create, and engage with human language on a large scale. They are trained on vast amounts of written material to recognize patterns in language and predict what might come next in a given piece of text.
+
+The Vercel AI SDK Core simplifies working with LLMs by offering a standardized way of integrating them into the app — so we can focus on building great AI applications for the users.
+
+AI ADK Core has various functions designed for text generation, structured data generation, and tool usage. These functions take the standardized approach to setting up prompts and settings, making it easier to work with different models.
+
+- _**generateText**_— Generates text and [tool calls](https://sdk.vercel.ai/docs/ai-sdk-core/tools-and-tool-calling). This function is ideal for non-interactive use cases such as automation tasks where you need to write text (e.g. drafting email or summarizing web pages) and for agents that use tools.
+
+- _**streamText**_ — Stream text and tool calls. You can use the `streamText` function for interactive use cases such as chat bots and content streaming. You can also generate UI components with tools (see [Generative UI](https://sdk.vercel.ai/docs/ai-sdk-rsc)).
+
+- _**generateObject**_ — Generates a typed, structured object that matches a [Zod](https://zod.dev/) schema. You can use this function to force the language model to return structured data, e.g. for information extraction, synthetic data generation, or classification tasks.
+
+- _**streamObject**_ — Stream a structured object that matches a Zod schema. You can use this function to stream generated UIs in combination with React Server Components (see [Generative UI](https://sdk.vercel.ai/docs/ai-sdk-rsc)).
+
+Example how to switch between the models:
+
+```javascript
+
+import { google } from "@ai-sdk/google"; // Google models
+import { openai } from "@ai-sdk/openai"; // OpenAI models
+import { generateText } from "ai";
+
+
+async function main() {
+ const result = await generateText({
+  model: google("models/gemini-pro")
+  //model: openai("gpt-4o)
+  prompt: "Say something funny"
+ })
+ console.log(result.text)
+}
+
+main().catch(console.error)
+
+
+```
+
+## 2 - AI SDK UI
+
+**A set of framework-agnostic hooks for quickly building chat interfaces**
+
+The Vercel AI SDK UI is designed to facilitate the development of interactive chat, completion, and assistant applications. This framework-agnostic toolkit streamlines the integration of advanced AI functionalities into your applications.
+
+The Vercel AI SDK UI offers robust abstractions that simplify managing chat streams and frontend UI updates, enabling more efficient development of dynamic AI-driven interfaces. With three main hooks — useChat, useCompletion, and useAssistant — you can incorporate real-time chat capabilities, text completions, and interactive assistant features into your application.
+
+- _**useChat**_ — Provides real-time streaming of chat messages, abstracting state management for inputs, messages, loading, and errors, allowing seamless integration into any UI design.
+- _**useCompletion**_ — Manages text completions in your applications, handling chat input state and automatically updating the UI as new completions are streamed from your AI provider.
+- _**useAssistant**_— Facilitates interaction with OpenAI-compatible assistant APIs, managing UI state and updating it automatically as responses are streamed.
+
+These hooks are designed to reduce the complexity and time required to implement AI interactions, allowing you to focus on creating exceptional user experiences.
+
+## 3 - AI SDK RSC
+
+**A library to stream generative user interfaces with React Server Components (RSC)**
+
+React Server Components (RSC) enable you to write UI that can be rendered on the server and streamed to the client. This capability allows for language model generations and UI updates to be performed on the server, ensuring synchronization and easing the management of React components.
+
+The AI SDK RSC (ai/rsc) leverages RSCs to address the challenge of managing React components on the client side, allowing for server-side rendering and streaming of React components to the client.
+
+Instead of conditionally rendering user interfaces on the client based on data returned by the language model, you can stream them directly from the server during model generation.
+
+The createStreamableUI function from the ai/rsc module creates a stream that can send React components to the client.
+
+On the server, you render your component with the provided props and stream it to the client. On the client side, you only need to render the UI that is streamed from the server. Here is an example:
+
+1. The user prompts the language model.
+2. The language model generates a response that includes a tool call.
+3. The tool call renders a React component along with relevant props that represent the user interface.
+4. The response is streamed to the client and rendered directly.
+
+**Getting Started with AI SDK Core for [Next.js App Router](https://sdk.vercel.ai/docs/getting-started/nextjs-app-router)**
+
+## What I have built with it?
+
+I have developed a robust e-commerce platform using MedusaJS. The backend is deployed on Render.com, with object storage on DigitalOcean. The frontend is hosted on Vercel. For testing purposes, I integrated an AI shopping assistant featuring custom function calls to guide customers through the entire shopping journey using Generative UI.
+
+<Image src={Image_2} width={800} height={400} alt="" />
+
+## 1 - Building the AI Actions file
+
+We begin by creating the AI actions file, which encompasses the entire AI logic and context.
+
+The following example demonstrates a server-side implementation of a conversational AI assistant for a pre-owned luxury goods e-commerce platform. This assistant assists users in purchasing products, answering questions about specific products and brands, and providing information on pricing, delivery, and finalizing payments through a generative UI.
+
+We utilize OpenAI from the ai-sdk/openai package to generate responses to user input, and the streamUI function to display these responses. The continueConversation function serves as the main entry point for the assistant, accepting a user’s input as a string and returning a ClientMessage object containing the assistant’s response.
+
+The ServerMessage and ClientMessage interfaces define the structure of messages exchanged between the server and the client. A ServerMessage includes a `role` property indicating whether the message is from the user or the assistant, and a `content` property containing the text of the message. A ClientMessage includes an `id` and `role` property, along with a `display` property that contains a React component to be rendered in the user interface.
+
+The continueConversation function also specifies a set of tools to perform specific actions in response to user input. For example, the showProducts tool displays a list of products to the user.
+
+The showProducts tool is defined as an asynchronous generator function that yields a series of React components representing the loading state, the products, and any potential error messages. Now, the function getProductList is a function to feed products from MedusaJS backend, the same function that is used across other components.
+
+The AI object is created using the createAI function from the `ai/rsc` library. The `createAI` function accepts a set of actions, an initial AI state, and an initial UI state, and returns an AI object for interacting with the assistant. In this case, the AI object is used to define the `continueConversation` action and the initial AI and UI states.
+
+`ai-actions.tsx`
+
+```javascript
+"use server"
+
+import {
+  createAI,
+  createStreamableUI,
+  getAIState,
+  render,
+  createStreamableValue,
+  getMutableAIState,
+  streamUI,
+} from "ai/rsc";
+
+import { nanoid } from "nanoid";
+import { z } from "zod";
+
+import { openai } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import { ReactNode, cache } from "react";
+
+import ProductAIPreview from "@modules/products/components/product-ai-page";
+
+import { getHomepageProducts, getProductsList } from "@lib/data";
+
+// ------> GENERATIVE UI ACTIONS <------
+
+export interface ServerMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ClientMessage {
+  id: string;
+  role: "user" | "assistant";
+  display: ReactNode;
+}
+
+export async function continueConversation(input: string): Promise<ClientMessage> {
+  "use server";
+
+  const history = getMutableAIState();
+  const result = await streamUI({
+    model: openai("gpt-4o"),
+    messages: [
+      {
+        role: "system",
+        content: `\
+You are a pre-owned luxury goods e-commerce assistant. You can help users buy products, step by step. You answer questions about specific products and brands. You are very polite and you present yourself as Bożena.
+
+You and the user can discuss the price but you cannot change it. The user can select the product and go to checkout through the UI.
+
+Messages inside [] mean that it's a UI element or a user event. For example:
+
+- "[Price of Dior bag is PLN 1000]" means that an interface of the product is shown to the user.
+- "[User has clicked the like element on the UI]" means you suggest redirection to http://www.gibbarosa.com
+
+If the user wants to see the current products, call \`show_products\`.
+If the user requests purchasing a product, call \`redirect_to_store\` to show the purchase UI.
+If the user just wants the price, call \`show_price_delivery\` to show the price.
+If the user swears, or wants to complete another impossible task, respond politely that you will not do it, but you can show the user the products by calling \`show_products\`.
+You can also show the user all the products by calling \`show_products\`.
+If the user wants to explore more products or buy directly at a store, call \`redirect_to_store\`.
+You do not respond to any other, non-related questions. If the user diverts the conversation, always respond that you are a luxury shopping assistant and you are unable to advise on anything else.
+If the customer asks in Polish, respond in Polish. If the customer asks in English, respond in English. If the customer asks in French, respond in French. If the customer asks in German, respond in German. If the customer asks in Spanish, respond in Spanish.`,
+      },
+      ...history.get(),
+      { role: "user", content: input },
+    ],
+    text: ({ content, done }) => {
+      if (done) {
+        history.done((messages: ServerMessage[]) => [
+          ...messages,
+          { role: "assistant", content },
+        ]);
+      }
+      return <div>{content}</div>;
+    },
+    tools: {
+      showProducts: {
+        description: "Get the latest products",
+        parameters: z.object({
+          product: z.string().describe("product"),
+        }),
+        generate: async function* () {
+          // Here I will reuse the BotCard component and Skeletons
+          yield <div>Searching the wardrobe for you...</div>;
+          try {
+            const {
+              response: { products },
+            } = await getProductsList({
+              pageParam: 0,
+              countryCode: "pl", // Adjust based on your context
+            });
+
+            yield <div>Showing you the latest products:</div>;
+
+            return <ProductAIPreview products={products} />;
+            console.log("Fetched products:", products);
+          } catch (error) {
+            console.error("Error fetching products:", error);
+
+            yield (
+              <div>
+                There was an error fetching the products. Please try again
+                later.
+              </div>
+            );
+          }
+        },
+      },
+    },
+  });
+
+  return {
+    id: nanoid(),
+    role: "assistant",
+    display: result.value,
+  };
+}
+
+export const AI = createAI<ServerMessage[], ClientMessage[]>({
+  actions: {
+    continueConversation,
+  },
+  initialAIState: [],
+  initialUIState: [],
+});
+
+
+```
+
+## 2 - You will need to wrap your components with AI wrapper from ai-actions.ts
+
+`layout.ts`
+
+```javascript
+import { AI } from '../../../ai-actions'
+
+export default function AiAssistantLayout({
+  children,
+}: {
+  children: React.ReactNode,
+}) {
+  return (
+    <>
+      <AI>{children}</AI>
+    </>
+  )
+}
+```
+
+## 3 — and here is the page.tsx frontend sourcing form ai-actions and ai/rsc
+
+`page.tsx`
+
+```javascript
+'use client'
+
+import { useState } from 'react'
+import { ClientMessage } from '../../../ai-actions'
+import { useActions, useUIState } from 'ai/rsc'
+import { nanoid } from 'nanoid'
+import { EmptyScreen } from '@modules/ai-chat/components/EmptyScreen'
+import Divider from '@modules/common/components/divider'
+import Input from '@modules/common/components/input'
+import { Button } from '@medusajs/ui'
+
+export default function AIAssistant() {
+  const [input, setInput] = useState < string > ''
+  const [conversation, setConversation] = useUIState()
+  const { continueConversation } = useActions()
+
+  return (
+    <section className="mx-auto flex max-w-3xl flex-col items-center justify-center py-6">
+      <EmptyScreen />
+
+      <div className="mt-4 px-4">
+        {conversation.map((message: ClientMessage, index: number) => (
+          <div key={message.id}>
+            {message.role}: {message.display}
+            {index !== conversation.length - 1 && <Divider className="my-4" />}
+          </div>
+        ))}
+      </div>
+
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+          setInput('')
+          setConversation((currentConversation: ClientMessage[]) => [
+            ...currentConversation,
+            { id: nanoid(), role: 'user', display: input },
+          ])
+          const message = await continueConversation(input)
+          setConversation((currentConversation: ClientMessage[]) => [
+            ...currentConversation,
+            message,
+          ])
+        }}
+        className="bg-background = flex max-h-60 w-full grow flex-col overflow-hidden px-8 sm:rounded-md sm:px-12"
+      >
+        <div className="bg-background flex items-center justify-center space-y-4 border-t px-4 py-2 shadow-lg sm:rounded-t-xl md:py-4">
+          <input
+            type="text"
+            value={input}
+            placeholder="How can I help you?"
+            className="font-inter min-h-[60px] w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm"
+            onChange={(event) => {
+              setInput(event.target.value)
+            }}
+          />
+
+          <Button className="mt-8 w-fit bg-black text-white">Ask</Button>
+        </div>
+      </form>
+    </section>
+  )
+}
+```
+
+This example demonstrates a server-side implementation of a conversational AI assistant for a pre-owned luxury goods e-commerce platform. The assistant leverages the OpenAI library to generate responses to user input and the streamUI function to display these responses within the user interface.
+
+The `continueConversation` function serves as the main entry point for the assistant. It accepts a user’s input as a string and returns a `ClientMessage` object containing the assistant’s response. The `AI` object is created using the `createAI` function from the `ai/rsc` library and is utilized to define the `continueConversation` action along with the initial AI and UI states.
+
+Happy coding! :)
+
+Piotr

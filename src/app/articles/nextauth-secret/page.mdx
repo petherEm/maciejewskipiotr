@@ -1,0 +1,75 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+
+export const article = {
+  author: 'Piotr',
+  date: '2022-10-28',
+  tags: ['Next.js/JS'],
+  title: "NextAuth.js 'secret' - server error explained.",
+  description:
+    'Quick guide how to tackle CLIENT_FETCH_ERROR when using NextAuth.js with Next.js',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+I have been using NextAuth.js for my projects for a couple of months now. Recently, I faced a little challenge while going to Production [Server Error — there is a problem with the server configuration. Check the server logs for more information].
+
+<Image src="" alt="" />
+
+## About NextAuth.js (source: next-auth.js.org)
+
+NextAuth.js is a complete open-source authentication solution for the Next.js application. It is designed from the ground up to support Next.js and Serverless. It is very simple to embed in your Next.js project and has a solid base of authentication providers — https://next-auth.js.org/providers
+
+## CLIENT_FETCH_ERROR_CHALLENGE
+
+The Server Error appeared in Production only when initiating the authentication.
+
+_Failed to load resource: the server responded with a status of 500 ()_
+
+_[next-auth][error][CLIENT_FETCH_ERROR] https://next-auth.js.org/errors#client_fetch_error There is a problem with the server configuration. Check the server logs for more information._
+
+_/api/auth/\_log:1 Failed to load resource: the server responded with a status of 500 ()_
+
+I found out in NextAuth.js documentation that from v4 the ‘secret’ property is mandatory in production — _“NextAuth.js used to generate a secret for convenience, when the user did not define one. This might have been useful in development, but can be a concern in production. We have always been clear about that in the docs, but from now on, if you forget to define a secret property in production, we will show the user an error page.”_
+
+So, I followed this suggestion and generated a ‘secret’ property via
+
+```c
+$ openssl rand -base64 32
+```
+
+and place it as a parameter to NextAuth object in […nextauth].js
+
+```c
+import NextAuth from "next-auth"
+import GithubProvider from "next-auth/providers/github"
+import GoogleProvider from "next-auth/providers/google"
+export const authOptions = {
+// Configure one or more authentication providers
+providers: [
+GoogleProvider({
+   clientId: process.env.GOOGLE_CLIENT_ID,
+   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+})
+// ...add more providers here
+  ],
+  secret: process.env.SECRET
+}
+export default NextAuth(authOptions)
+
+```
+
+My .env.local file:
+
+```c
+
+# Authentication
+
+GOOGLE_CLIENT_ID=xxxxxxxxxxxxxxx
+GOOGLE_CLIENT_SECRET=xxxxxxxxxxxx
+NEXTAUTH_URL=xxxxxxxxxxxxx
+SECRET=xxxxxxxxxxxxx
+
+```
+
+I hope this helps some of you :) Have a great day!

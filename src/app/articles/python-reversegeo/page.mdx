@@ -1,0 +1,110 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/py_reverse_head.jpg'
+import Image_2 from '@/images/blog/py_reverse_3.webp'
+import Image_3 from '@/images/blog/py_reverse_4.webp'
+import Image_4 from '@/images/blog/py_reverse_5.webp'
+import Image_5 from '@/images/blog/py_reverse_6.webp'
+
+export const article = {
+  author: 'Piotr',
+  date: '2023-03-16',
+  tags: ['Python', 'Data Science'],
+  title: 'Reverse Geocode with Python, real example with reverse_geocode.',
+  description:
+    'A simple project example how to reverse geocoding with Python and Reverse Geocode.',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+Reverse Geocode takes a **latitude/longitude coordinates** and returns **the country and city**.
+
+The module has a set of known geocoded locations and uses k-d tree to find the nearest neighbour efficiently. It is useful when you need to reverse geocode a large number of coordinates, so a web API is not practical.
+
+Want to read it on Medium? [Click here](https://medium.com/@pether.maciejewski/pydeck-python-data-visualization-column-layer-on-carto-maps-58a013fe940d)
+
+Full resources [here](https://pypi.org/project/reverse-geocode/).
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+## LET'S GET STARTED
+
+Let me show you a quick walkthrough of a little project where we need to retrieve country codes for each geo coordinates pair. We have been potentially given the task to group all geo coordinates by country and plot them on the map.
+
+Plotting with **deck.gl** and **CARTO** maps is explained [here](https://medium.com/@pether.maciejewski/pydeck-python-data-visualization-column-layer-on-carto-maps-58a013fe940d)
+
+For this project, I am using [Jupyter Notebook](https://jupyter.org/) — the original web application for creating and sharing computational documents. It offers a simple, streamlined, document-centric experience.
+
+The key Python library for this project is _`pydeck`_. By default, pydeck 0.6 provides basemap tiles through Carto. You can optionally use Mapbox API key, by registering for Mapbox. But, the Carto map is enough for this project.
+
+1. We begin with installing _`reverse-geocode`_
+
+```c
+  pip install reverse-geocode
+  pip3 install reverse-geocode
+```
+
+2. and importing respective libraries
+
+```c
+  import reverse_geocode
+  import pandas as pd
+  import json
+  import numpy as np
+  import csv
+  import os
+```
+
+3. We can quickly test _`reverse-geocode`_ module.
+
+```c
+  x = 36.988287
+  y = 35.272027
+  coordinates = [(x,y)]
+```
+
+<Image src={Image_2} width={800} height={400} alt="" />
+
+We have the ISO country code, city and country name returned.
+
+4. The next step is to import our geo coordinates dataset to **Pandas DataFrame** and display few rows.
+
+```c
+  df = pd.read_csv('my_newDataSet.csv', index_col = 0)
+  df
+```
+
+<Image src={Image_3} width={800} height={400} alt="" />
+
+5. As we have geo coordinates in two columns, we should prepare the data for _`reverse_geocode`_ and zip the columns.
+
+```c
+  # Creating a zip with latitudes and longitudes
+  lats=df['lat'].to_list()
+  lons=df['long'].to_list()
+  coords = list(zip(lats, lons))
+  coords
+```
+
+<Image src={Image_4} width={800} height={400} alt="" />
+
+6. We can then initiate reverse_geocode passing our prepared data from coords variable and store the results in **'reversed'** variable.
+
+```c
+  # Reverse geocoding
+  reversed = reverse_geocode.search(coords)
+  reversed
+```
+
+<Image src={Image_5} width={800} height={400} alt="" />
+
+7. The last step would be to save the output to .csv file if needed.
+
+```c
+  np.savetxt('reversed.csv',
+    reversed,
+    delimiter = ", ",
+    fmt = '% s')
+```
+
+## Happy Coding!

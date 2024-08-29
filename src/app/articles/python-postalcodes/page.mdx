@@ -1,0 +1,84 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/py_postal_heading.jpg'
+import Image_2 from '@/images/blog/py_postal_2.webp'
+import Image_3 from '@/images/blog/py_postal_3.webp'
+import Image_4 from '@/images/blog/py_postal_6.webp'
+
+export const article = {
+  author: 'Piotr',
+  date: '2023-04-05',
+  tags: ['Python', 'Data Science'],
+  title: 'Python with Pgeocode and Pandas. Postal codes to geo coordinates.',
+  description:
+    'How to retrieve geo coordinates from the set of zip codes. pgeocode is a lightweight Python library for high-performance off-line querying of GPS coordinates, region name and municipality name from postal codes.',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+In some projects, you may need to retrieve geo coordinates from the set of zip codes. _`pgeocode`_ is a lightweight Python library for high-performance off-line querying of GPS coordinates, region name and municipality name from postal codes.
+
+You can read this on **Medium** [here](https://medium.com/@pether.maciejewski/python-with-pgeocode-and-pandas-postal-codes-to-geo-coordinates-f75af689cc56).
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+Distances between postal codes and general distance queries are also supported. The database in use includes postal codes for **83 countries**.
+
+Check the source [here](https://pypi.org/project/pgeocode/).
+
+Let me quickly show you how to use _`pgeocode`_ in one of the real projects where we are tasked to retrieve geo coordinates from the subset of zip codes.
+
+1. Let's begin with installing _`pgeocode`_.
+
+```python
+
+pip install pgeocode
+or
+conda install -c conda-forge pgeocode
+```
+
+2. Then, we import the key libraries for this little project.
+
+```python
+  import pandas as pd
+  import os
+  import pgeocode
+```
+
+3. And we import our data to pandas DataFrame to _`df`_ variable
+
+```python
+  df = pd.read_excel('CH_Post.xlsx')
+  df
+```
+
+<Image src={Image_2} width={800} height={400} alt="" />
+
+4. We are then storing zip codes column to _`postal_codes`_ variable
+
+```python
+  postal_codes = df["PLZ"].values.astype('str').tolist()
+  postal_codes
+```
+
+<Image src={Image_3} width={800} height={400} alt="" />
+
+5. Subsequently, we initiate our pgeocode library, indicating we are seeking coordinates from the zip codes in Switzerland (providing ISO country code)
+
+```python
+  nomi = pgeocode.Nominatim('ch')
+  swiss_post = nomi.query_postal_code(postal_codes)
+  swiss_post
+```
+
+<Image src={Image_4} width={800} height={400} alt="" />
+
+6. The last step is to save our newly created dataset to _.csv_ file.
+
+```python
+  swiss_post.to_csv('CH_Post_with_geocoord.csv')
+```
+
+## CONCLUSION
+
+In the six easy steps, you retrieved geo coordinates from the set of zip codes using pandas and pgeocode.

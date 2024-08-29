@@ -1,0 +1,386 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+
+export const article = {
+  author: 'Piotr',
+  date: '2023-03-01',
+  tags: ['Next.js/JS'],
+  title: 'Next.js fetching data. Before and now with Next.js 13',
+  description:
+    'An attempt to structure data fetching in Next.js. How to fetch data in getStaticProps, getServerSideProps, getStaticPaths in previous Next.js versions and now with Next.js 13.',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+Server Components are the new type of React components that run on the server and can be streamed to the client. They can be used to build full-stack applications, where the server handles the logic and the client renders the UI.
+
+Next.js, with its new _`app directory`_ released in Next.js 13, fully embraced Server Components by making them the default type components.
+
+It is rightly considered as a big shift from traditional React components that run both on the server and on the client.
+In fact, as specified, React server components **do not execute on the client**. They are only executed on the server.
+
+Let's try to structure our Next.js knowledge about fetching data, **before and now with Next.js 13**.
+
+<Image src="" alt="" />
+
+## About Next.js
+
+Next.js is an open-source React front-end development web framework created by **Vercel** that enables functionality such as server-side rendering and generating static websites for React based web applications. Where traditional React applications render code on the client-side, Next.js allows React components to be rendered on the server-side.
+
+## THE WORLD BEFORE NEXT.JS 13 - STRUCTURING KNOWLEDGE
+
+Before Next.js 13, Next.js used to have **four** different ways to fetch data:
+
+**(1) Client-Side Rendering** (CSR) - well-known, commonly-used in React in the past year _`useEffect`_ method that fetches data on the client side, after the page is rendered.
+
+**(2) Server-Side Rendering** (SSR) - that runs _`getInitialProps`_ method on the server side, before the page is rendered. It fetches data on the server side, before the page is rendered.
+
+When should I use _`getServerSideProps`_?
+
+> You should use _`getServerSideProps`_ only if you need to render a page whose data must be fetched at request time. This could be due to the nature of the data or properties of the request (such as authorization headers or geo location). Pages using _`getServerSideProps`_ will be server side rendered at request time and only be cached if cache-control headers are configured.
+
+_`getServerSideProps`_ or _`API routes`_?
+
+> It can be tempting to reach for an **API route** when you need to fetch data from the server, then call that API route from _`getServerSideProps`_. This is **unnecessary** and **inefficient** approach, as it will cause an extra request to be made due to both _`getServerSideProps`_ and _`API routes`_ being executed on the server.
+
+> Let's take the following example. An API route is used to fetch some data from CMS. That API route is then called directly from _`getServerSideProps`_. **This produces an additional call, reducing performance.\*** Instead, directly import the logic used inside your API route directly into _`getServerSideProps`_. This will allow you to reuse the same logic without making an additional request.
+
+**(3) Static Site Generation** (SSG) - runs a unique method to fetch data on the server side, before the page is rendered. It fetches data on the server side before the page is rendered. It also generates a static HTML file, which is served to the client.
+
+**(4) Incremental Static Regeneration** (ISR) - a combination of **SSG** and **SSR**, where it served statically, but at certain conditions, it re-generates the page and fetches the data from the API again.
+
+## CLIENT-SIDE RENDERING (CSR)
+
+Here is an example of fetching data on the client side from Shopify API (using Shopify hooks, but this is irrelevant for our example), using _`useEffect`_ method.
+
+```c
+import React, { useEffect, useState } from "react";
+import { shopifyClient, parseShopifyResponse } from "../lib/shopify";
+
+const Home = () => {
+  const [products, setProducts] = useState([]);
+
+  //useEffect to retrive shopify data
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const products = await shopifyClient.product.fetchAll();
+      const parsedResponse = parseShopifyResponse(products);
+
+      setProducts(parsedResponse);
+    };
+    fetchProducts();
+  }, []);
+
+  return (
+    <div>
+      <div className="mt-20 flex flex-wrap">
+        {products.map((product) => (
+          <div key={product.id}>
+            <img
+              className="w-[300px] h-[400px]"
+              src={product.images.map((image) => image.src)}
+            />
+            <p>{product.title}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default Home;
+
+
+```
+
+- We are calling the _`useEffect`_ method after the page is rendered. The page is rendered first, and then the data is fetched from the API.
+
+## SERVER-SIDE RENDERING (SSR)
+
+Using the _`getServerSideProps`_ method, we can fetch data on the server side, before the page is rendered.
+
+```c
+
+//getServerSideProps to retrive shopify data
+
+export async function getServerSideProps() {
+  const products = await shopifyClient.product.fetchAll();
+  const parsedResponse = parseShopifyResponse(products);
+
+  return {
+    props: {
+      products: parsedResponse,
+    },
+  };
+}
+
+
+```
+
+- the data is fetched **before** the page is rendered, so the page is rendered after the data is fetched from the API
+- the data is fetched on **every** request
+
+## STATIC SITE GENERATION (SSG)
+
+Using _`getStaticProps`_ method, we fetch data only when the app is built, and then the data is served statically.
+
+```c
+  //getStaticProps to retrive shopify data
+  // TO COMPLETE
+  export async function getStaticProps() {
+  const products = await shopifyClient.product.fetchAll();
+  const parsedResponse = parseShopifyResponse(products);
+
+  return {
+    props: {
+      products: parsedResponse,
+    },
+  };
+}
+
+```
+
+## INCREMENTAL STATIC REGENERATION (ISR)
+
+To complete...
+
+```c
+  import styles from '../styles/Home.module.css'
+
+  const IncrementalStatic = ({ joke }) => {
+    console.log(joke);
+
+    return (
+      <div className={styles.container}>
+        <span className={styles.description}>Today joke:</span>
+        <h1 className={styles.title}>{joke}</h1>
+      </div>
+    )
+
+  }
+
+  export async function getStaticProps() {
+    console.log('getStaticProps')
+
+    const url = 'https://official-joke-api.appspot.com/random_joke'
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    const data = await res.json()
+    console.log(data);
+
+    return {
+      props: {
+        joke: data.joke
+      },
+      revalidate: 10
+    }
+  }
+  export default IncrementalStatic;
+
+
+```
+
+- When we set **revalidate** prop to certain amount of time (20 secs), reloading does not trigger changes. The page will remain in a cooldown state.
+- Is then the page rebuilt every 20 seconds, then? No, when the cooldown state is off, no one visits the page. It will not rebuild even after 20 seconds pass. However, the first person entering the page will trigger the rebuild. Funnily this visitor will not see those changes, but the changes will be applied to the next full reload.
+
+### DATA FETCHING IN NEXT.JS
+
+Data fetching in Next.js allows you to render your content in different ways, depending on your application's use case. These include:
+
+- **Static Generation** - fetch data at build time and generate a static HTML file
+- **Server-side Rendering** - fetch data on each request
+- **Client-side Rendering** - fetch data on the client side
+
+## NEXT.JS 13 - DATA FETCHING
+
+Next.js 13 introduces the **app/directory** structure that supports **COLOCATED DATA FETCHING** at the component level, using new React **use** hook and an extended fetch **Web API.**
+
+I encourage you to read the official Next.js documentation about data fetching in Next.js 13, as it is very well written and explains everything in detail - https://beta.nextjs.org/docs/data-fetching/fundamentals
+
+Let's go through the fundamental concepts and patterns to help you manage your data's lifecycle in Next.js 13.
+
+**_GOOD TO KNOW:_** Previous, Next.js data fetching methods such as _`getServerSideProps`_, _`getStaticProps`_, and _`getInitialProps`_ are _`not supported`_ in the new **app** directory.
+
+### THE FETCH() API
+
+The new data fetching system is built on top of the native _`fetch()`_ Web API and makes use of **async/await** in Server Components.
+
+- React extends fetch to provide automatic request deduping.
+- Next.js extends fetch options object to allow each request to set its won caching and revalidating rules.
+
+Whenever possible, it is recommended fetching data inside Server Components. Server Components **always fetch data on the server**. This allows you to:
+
+1. Have direct access to backend data resources (e.g. databases, file systems, etc.)
+2. Keep your app more secure by preventing sensitive information, such as access tokens and API keys, from being exposed to the client.
+3. Fetch data and render in the same environment. This reduces both the back-and-forth communication between client and server, as well as the work on the main thread on the client.
+4. Perform multiple data fetches with single round-trip to the server.
+5. Reduce client-server waterfalls.
+6. Depending on your region, data fetching can also happen closer to your data source, reducing latency and improving performance.
+
+**_GOOD TO KNOW:_** It is still possible to fetch data client-side. It is recommended using a third-party library such as SWR to handle caching and revalidation. In the future we will be able to use the new _`useFetch()`_ hook to fetch data client-side.
+
+### COMPONENT-LEVEL DATA FETCHING
+
+In this new model, we can fetch data inside **layouts**, **pages**, and **components**. This allows us to fetch data at the component level, which is a great improvement over the previous model, where we had to fetch data at the page level.
+
+**_GOOD TO KNOW:_** For layouts, it is not possible to pass data between a parent layout and its children. It is recommended fetching data directly inside the layout that needs it, even if you are requesting the same data multiple times in a route. Behind the scenes, React and Next.js will cache and dedupe requests to avoid the same data being fetched more than once.
+
+### CACHING DATA
+
+_`caching`_ is the process of storing data in a location (e.g. Content Delivery Network) so it does not need to be re-fetched from the original source. This is a great way to improve performance and reduce the load on the server.
+
+Next.js cache is a persistent _`http`_ cache that can be globally distributed. This means the cache can scale automatically and be shared across multiple regions depending on your platform (e.g. Vercel, AWS, etc.).
+
+Next.js extends the options object of the _`fetch()`_ Web API to allow each request to set its own caching and revalidating rules.
+
+Together with component-level data fetching, this allows you to configure caching within your application code directly where data is being used.
+During server rendering, when Next.js comes across a _`fetch()`_ request, it will automatically cache the response and serve it to the client. This means that the client will not need to make a request to the server to fetch the same data again.
+
+### NEXT.JS 13 DATA FETCHING EXAMPLES
+
+With the proposed React RFC, you can use _`async/await`_ to fetch data in Server Components:
+
+```c
+  async function getData() {
+    const res = await fetch('https://example.com/api/data')
+
+
+    if(!res.ok) {
+      throw new Error('Failed to fetch')
+    }
+
+    return res.json();
+  }
+
+  export default async function Page() {
+    const data = await getData();
+
+    return (
+      <div>
+        <h1>My Page</h1>
+        <p>{data.message}</p>
+      </div>
+    )
+  }
+
+```
+
+You can use _`async/await`_ in layouts and pages, which are Server Components. Using _`async/await`_ in other components with TypeScript can cause errors from teh response type from JSX.
+
+### REVALIDATING DATA
+
+To revalidate cached data at a timed interval, we can use the _`next.revalidate`_ option in the _`fetch()`_ options object:
+
+```c
+  fetch('https://...', { next: { revalidate: 10 } })
+```
+
+### DYNAMIC DATA FETCHING
+
+To fetch fresh data on every request, use _`cache:'no-store'`_ option
+
+```c
+  fetch('https://...', { cache: 'no-store' })
+```
+
+### MUTATING DATA
+
+We can mutate data inside **app directory** with _`router.refresh()`_.
+Let's see an example:
+
+```c
+  import Todo from './Todo';
+
+  interface Todo {
+    id: number;
+    title: string;
+    completed: boolean;
+  }
+
+  async function getTodos() {
+    const res = await fetch('https://example.com/api/todos');
+
+    const todos: Todo[] = await res.json();
+
+    return todos;
+  }
+
+  export default async function Page() {
+    const todos = await getTodos();
+
+    return (
+      <div>
+        <h1>My Todos</h1>
+        <ul>
+          {todos.map((todo) => (
+            <Todo key={todo.id} {...todo} />
+          ))}
+        </ul>
+      </div>
+    )
+  }
+```
+
+Each item has its own client component. This allows the component to use event handlers (like _`onClick`_ or _`onSubmit`_) to trigger mutation.
+
+```c
+  "use client";
+
+  import { useRouter } from 'next/navigation';
+  import { useState, useTransition } from 'react';
+
+
+  interface Todo {
+    id: number;
+    title: string;
+    completed: boolean;
+  }
+
+  export default function Todo(todo: Todo) {
+    const router = useRouter();
+    const [isPending, startTransition] = useTransition();
+    const [isFetching, setIsFetching] = useState(false);
+
+
+    //Create inline loading UI
+    const isMutating = isFetching || isPending;
+
+    async function handleChange() {
+      setIsFetching(true);
+
+      // Mutate external data source
+      await fetch(`https://api.example.com/todos/${todo.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          completed: !todo.completed
+      }));
+
+      setIsFetching(false);
+      startTransition(() => {
+        // Refresh the current route and fetch new data from the server without
+        // losing client-side browser or React state
+
+        router.refresh();
+      });
+    }
+
+    return (
+      <li style={{ opacity: !isMutating ? 1 : 0.7 }}>
+        <input
+          type="checkbox"
+          checked={todo.completed}
+          onChange={handleChange}
+          disabled={isMutating}
+
+        />
+        {todo.title}
+      </li>
+    )
+  }
+
+```
+
+By calling _`router.refresh()`_, the current route will refresh and fetch an update list of todos from the server. This does not affect browser history, but it does refresh data from the root layout down. When using _`refresh()`_, client-side state is not lost, including both React and browser state.
