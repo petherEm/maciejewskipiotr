@@ -64,7 +64,7 @@ export default function Uses() {
             collaboration and mutual business growth. <br />
             Leveraging advanced data analytics and programming skills to
             optimize strategies, support data-driven decisions, and monitor the
-            bank's performance. <br />
+            bank&apos;s performance. <br />
             Developing competitive pricing strategies, balancing profitability
             with customer acquisition and retention.
           </Tool>
@@ -91,8 +91,8 @@ export default function Uses() {
             Leading Western Union Enterprise Partnerships development across
             Central Europe (DACHL/CEE). <br />
             Driving incremental revenue through WU cross-border payments product
-            integrations to Financial Institution’s ecosystem (Tier 1 - 2 banks
-            & fintechs).
+            integrations to Financial Institution&apos;s ecosystem (Tier 1 - 2
+            banks & fintechs).
             <br />
             Ultimately responsible for the solution delivery, managing several
             cross-functional teams. Holistically responsible for sales, contract
@@ -104,11 +104,11 @@ export default function Uses() {
               Switzerland."
           >
             Tasked with creating a new omnichannel strategy for Western Union in
-            Germany and Switzerland to ensure the company’s long-term success in
-            the region. The strategy was based on a deep understanding of the
-            market, customers, the competitive landscape, and the company’s
-            strengths and weaknesses. The strategy was presented to the WU
-            Executive team and was approved.
+            Germany and Switzerland to ensure the company&apos;s long-term
+            success in the region. The strategy was based on a deep
+            understanding of the market, customers, the competitive landscape,
+            and the company&apos;s strengths and weaknesses. The strategy was
+            presented to the WU Executive team and was approved.
           </Tool>
         </ToolsSection>
         <ToolsSection
@@ -132,7 +132,7 @@ export default function Uses() {
             Executing the proper dynamic pricing and FX strategy on the covered
             markets. <br />
             Coordinating proper adoption of key Compliance requirements such as
-            the 4th AML Directive and PSD2 to core products and partners’
+            the 4th AML Directive and PSD2 to core products and partners&apos;
             ecosystems in close cooperation with Compliance, InfoSec and
             Privacy.
           </Tool>
