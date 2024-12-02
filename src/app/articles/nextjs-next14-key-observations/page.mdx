@@ -1,0 +1,600 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/nextjs.jpeg'
+import Image_2 from '@/images/blog/p24_02.webp'
+
+export const article = {
+  author: 'Piotr',
+  date: '2024-09-15',
+  tags: ['Next.js/JS'],
+  title:
+    'Next.js 14 some of my key observations after one year of the extensive use.',
+  description:
+    'I am uncovering a range of insights that can help streamline your development process and avoid common pitfalls. In this article, I delve into some key observations and best practices from my personal experience.',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+## Introduction
+
+I am uncovering a range of insights that can help streamline your development process and avoid common pitfalls. In this article, I delve into some key observations and best practices from my personal experience. We explore why placing `use client` too high up in your component tree can be problematic and challenge the assumption that a component is automatically a server component just because it lacks the `use client` directive. Additionally, we will discuss how to prevent accidental data leaks, integration of third-party components, and the importance of understanding server components, server actions, and route handlers in Next.js applications. Whether you're a seasoned Next.js developer or just getting started, these insights aim to enhance your understanding and application of this powerful framework. Let's dive in!
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+## ITEM 1: using 'use client' too high up in the component tree
+
+Basically any user UI interaction triggers the necessity to have the particular component a **client component** `"use client"`.
+
+```tsx
+'use client'
+
+import { useState } from 'react'
+import { HeartFilledIcon, HeartIcon } from '@heroicons/react/20/solid'
+
+const FunkyButton = () => {
+  const [liked, setLiked] = useState(false)
+
+  return (
+    <button
+      className="rounded-md bg-zinc-300 p-2"
+      onClick={() => setLiked((prev) => !prev)}
+    >
+      {liked ? <HeartFilledIcon /> : <HeartIcon />}
+    </button>
+  )
+}
+export default FunkyButton
+```
+
+Here is an example of a component that needs to be a client component. It is a button that toggles between a filled heart and an empty heart. One of the common mistakes is to put the `use client` directive too high up in the component tree. This will cause the whole tree to be a client component, which is not necessary and can lead to performance issues.
+
+### Let's dive into the details
+
+In the Next.js 13 and beyond, the framework introduces the concept of **React Server Components (RSC)**. This allows developers to define components as either client-side or server side. Here are the main points related to this observation:
+
+1 - Client Components:
+
+- add `use client` if you want a component to be a client component
+
+- any user interaction like `onClick` or `onChange` or any stateful logic with hooks like `useState` or `useEffect` will require the component to be a client component because these interactions and hooks depend on client-side rendering.
+
+2 - Server Components:
+
+- By default, components in Next.js can be server components unless specified otherwise. Server components are rendered on the server and sent as HTML to the client.
+
+- Server components can fetch data directly from the server without exposing data fetching logic to the client, making it more secure and efficient in many cases.
+
+- Server components cannot have client-side interactivity. This means `onClick`, `onChange`, `useState`, `useEffect`, etc. are not allowed in server components.
+
+## ITEM 2: stop thinking that a component is a server component because it doesn't have 'use client'
+
+Very true - simply not having `use client` directive does not automatically make a component a **server component** in the sense that it will always be **server-rendered**.
+
+- **Explicit Client Components** - to use React hooks like `useState` or `useEffect` or event handlers like `onClick` or `onChange`, you need to add `use client` directive to the component.
+
+- **Implicit Server Components** - components without the `use client` directive are not necessairly **pure server components** but can be rendered on the server or the client depending on the component hierarchy.
+
+- **Component Hierarchy** - if a client component includes another component, that nested component will also be treated as a client component even if it does not explicitly contain the `use client` directive.
+
+A component without `use client` can still be rendered on the client if **it is part of the client-side rendered tree.** Thus, not having the `use client` directive does not strictly make it a server-only component.
+
+Understanding the context and hierarchy of how components are used will help determine whether they are rendered on the server or the client.
+
+### Behind the scenes
+
+DETAILED SSR (Server Side Rendering) PROCESS ON THE SERVER
+
+1. The server listens for incoming HTTP requests on a specified port. This is typically managed by a web server (e.g. Node.js server for Next.js application).
+
+2. When a request is received, the server determines which route/component needs to be rendered. In a Next.js application, this involves matching the request URL to the appropriate page component.
+
+3. If data fetching is needed (db queries) or calling external APIs then it happens on the server and the data is passed as props to page components.
+
+4. The server renders the React component tree to HTML using the fetched data. This involves server-side rendering the React components, which Next.js handles under the hood using React's rendering engine.
+
+5. During the rendering process, the server generates the complete HTML for the requested page.
+
+HYDRATION AND INTERACTIVITY ON THE CLIENT
+
+1. The client's browser receives the pre-rendered HTML and displays it immediately. This improves the perceived load time since the user can see the content while the Javascript is still loading.
+
+2. Loading Javascript Bundles: The client's browser starts downloading the necessary JS bundles that were referenced in the server-rendered HTML. These bundles include the code required to make the page interactive.
+
+3. Hydration: Once the JS bundles are loaded, the browser executes them. This process is called **hydration**.
+
+4. During hydration, the JS takes over the static HTML, attaching event listeners and enabling client-side interactivity (e.g. handling user interactions, updating the UI based on user input, etc.).
+
+5. The initial state sent from the server helps in synchronizing the client-side application with the server-rendered content.
+
+CHUNKING AND CODE SPLITTING
+
+1. Code splitting:
+
+   - Next.js automatically splits the JS bundles into smaller chunks to optimize loading times.
+   - This is done by analyzing the dependencies between components and splitting the code into separate bundles that can be loaded asynchronously.
+   - As the user navigates through the application, additional chunks are loaded on-demand.
+
+2. Lazy-loading:
+   - Non-essential components and modules can be lazy-loaded, meaning they are only fetched and executed when needed. This further reduces the initial load time and improve performance.
+
+In a modern SSR setup with Next.js, **the server handles initial data fetching and HTML rendering sending pre-rendered HTML to the client.** The client then downloads the necessary JavaScript bundles and hydrates the page, attaching interactivity and enabling a seamless user experience.This approach balances performance, SEO benefits, and user interactivity effectively. Hosting providers like **Vercel and Netlify** facilitates this process by providing the necessary infrastructure to run server-side code and handle incoming requests efficiently.
+
+## ITEM 3: stop thinking that a server component becomes a client component if you wrap it inside a client component
+
+Server component **can stay** a server component even if it is wrapped inside a client component. However, when server component is **imported** to client component, then indeed it becomes **a client component.**
+Theme management is a good example of this. You can have a server component that fetches the user's theme from the server and then pass it to a client component that handles the UI based on the theme.
+
+```tsx
+import Product from '@/components/product'
+import ThemeContextProvider from '@/context/theme-context-provider'
+
+export default function Home() {
+  return (
+    <main>
+      <ThemeContextProvider>
+        <Product />
+      </ThemeContextProvider>
+    </main>
+  )
+}
+```
+
+The use of `children` let you use the server component wrapped by client component properly.
+
+```tsx
+'use client'
+import { createContext, useState } from 'react'
+
+const ThemeContext = createContext('light')
+
+export default function ThemeContextProvider({ children }) {
+  const [theme, setTheme] = useState('light')
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  )
+}
+```
+
+Thus, it is **not accurate** to say that a server component becomes a client component simply by being wrapped inside a client component.
+**Instead, server components can be rendered as part of a client component tree**, but they maintain their server-rendered characteristics.
+
+**Hierarchy and Rendering:** The hierarchy does not change the nature of the component itself. A server component nested inside a client component **is still rendered on the server**, and its static output is included in the client-rendered tree.
+
+**Interactivity**: Server components cannot handle client-side interactivity. If you need interactivity, the component itself must be a client component.
+
+To summarize, a server component does not become a client component when included (wrapped) in a client component. **It remains a server component, rendered on the server, and its static HTML output is included in the client-rendered tree.** Understanding this distinction helps in effectively utilizing the strengths of both server and client components in Next.js.
+
+## ITEM 4: stop using 'use server' directive to force a component to be server-rendered
+
+```tsx
+'use server' // YOU DO NOT NEED TO DO THIS - EVERYTHING BE DEFAULT IS A SERVER RENDERING IN NEXT.JS
+
+import Product from '@/components/product'
+
+const ProductPage = async () => {
+  const res = await fetch('https://api.example.com/products')
+  const products = await res.json()
+
+  return (
+    <div>
+      {products.map((product) => (
+        <Product key={product.id} product={product} />
+      ))}
+    </div>
+  )
+}
+export default ProductPage
+```
+
+In the above case you are actually creating the **server action**, another concept in Next.js 14.
+
+If you accidentally import the server component to the client component, then it will indeed be exposed to client (becoming client component - as describe above).
+
+If you want to be sure it will never become a client component, use `server-only` directive.
+
+```tsx
+import 'server-only'
+
+const ProductPage = async () => {
+  const res = await fetch('https://api.example.com/products/3')
+  const product = await res.json()
+
+  return (
+    <div>
+      <p>{product.title}</p>
+    </div>
+  )
+}
+```
+
+### Let's dive into the details
+
+`use server` directive is not used to create server components. Instead, it is used to define **server actions**. Server components and server actions serve different purposes. Let's clarify these concepts in details:
+
+SERVER COMPONENTS VS SERVER ACTIONS
+
+**Server Components:**
+
+1. Server components are designed to be rendered on the server. They fetch data, render HTML and send it to the client withouth including any client-side interactivity.
+2. They help in reducing the initial JavaScript bundle size sent to the client, improving performance and SEO.
+3. Server components are implicitly server-rendered by default in Next.js unless explicitly marked as client components using `use client` directive.
+4. They cannot use React hooks that are meant for client-side interactivity like `useState`, `useEffect`, etc.
+
+**Server Actions:**
+
+1. Server actions are specific **server-side functions** that can be used within server components to perform server-side logic, such as data fetching, without affecting overall rendering process of the component.
+
+2. The `use server`; directive is used to define these actions. It indicates that the function should run on the server.
+
+```tsx
+'use server'
+
+export async function fetchUserData(userId) {
+  const res = await fetch(`https://api.example.com/users/${userId}`)
+  const data = await res.json()
+
+  return data
+}
+```
+
+Example of **incorrect** usage of `use server` directive:
+
+```ts
+'use server'
+
+
+const ServerComponent = () => {
+  <div> Server Component </div>
+}
+
+export default ServerComponent
+```
+
+The `use server` directive is used to create **server actions**, not server components. Server components are inherently server-rendered unless marked as client components with `use client`.
+**Server Actions** defined with `use server` perform server-side logic and can be used within server components to fetch data or execute other server-side operations. Understanding the correct usage of these directives ensures proper implementation and leverages the full potential of Next.js.
+
+## ITEM 5: accidentally leaking sensitive data from server to client
+
+Try to be careful passing the data from the server components to the potential client components as these will be exposed in the browser. While it's uncommon practice to pass any plain text password I would still recommend querying database directly from the give component and not passing the props.
+
+```tsx
+import Product from '@/components/product'
+
+export default function Home() {
+  const user = {
+    email: 'john@gmail.com',
+    password: 'password123',
+  }
+
+  return (
+    <main>
+      <Product user={user} />
+    </main>
+  )
+}
+```
+
+## ITEM 6: incorrectly dealing with 3rd party components
+
+```tsx
+import LoveButton from '@/components/love-button'
+import Product from '@/components/product'
+import Carousel from 'react-amazing-carousel'
+
+export default function Home() {
+  return (
+    <main>
+      <h1 className="text-5xl font-semibold">My Store</h1>
+      <Product />
+      <LoveButton />
+      <Carousel />
+    </main>
+  )
+}
+```
+
+Beware that **some of 3rd party components can use 'hooks' or 'events' that trigger the necessity for client components.**
+
+You can use it within your server component by wrapping it up into `use client` component.
+
+```tsx
+'use client'
+
+import Carousel from 'react-amazing-carousel'
+
+export default Carousel
+```
+
+and then you can import it directly from this file.
+
+## ITEM 7: clarifying Server Components vs Server Actions and Route handlers
+
+Again :)
+
+**SERVER COMPONENTS** are used to fetch and render data on the server side. They are designed to optimize performance by reducing the amount of Javascript sent to the client and by allowing the server to handle data fetching and HTML generation.
+These can fetch data directly from databases or external APIs and render the necessary HTML.
+
+**SERVER ACTIONS** are designed for server-side logic that involves data mutations, such as creating, updating or deleting resources (i.e. POST, PUT, DELETE operations). They are typically used within Server Components to handle these mutations, ensuring that the server performs the necessary operations securely and efficiently.
+
+**ROUTE HANDLERS** are used to define the logic for handling incoming HTTP requests to specific routes in the application. They can be used to fetch data, render HTML, or perform other server-side operations based on the request. Route handlers are a key part of server-side routing in Next.js applications. **They are mainly used for Webhooks now. You don't need spin up a separate API to get data or mutate data.**
+
+Example of getting the data through an API (not really necessary with Next.js 14)
+
+```tsx
+export default async function GET() {
+  const products = await prisma.product.findMany()
+  return Response.json(products)
+}
+```
+
+You can do it directly in your server component:
+
+```tsx
+import Product from '@/components/product'
+
+export default async function Home() {
+  const products = await prisma.product.findMany()
+
+  return (
+    <main>
+      {products.map((product) => (
+        <Product key={product.id} product={product} />
+      ))}
+    </main>
+  )
+}
+```
+
+There are different fetching techniques, **either directly to the component where the data is in use or through Home Page and then passed to respective components.** It totally depends on the architecture of your application.
+
+## ITEM 8: It is OK to get the same data in different places
+
+```tsx
+export default async function Product() {
+  const res = await fetch('https://api.example.com/products/2')
+  const product = await res.json()
+
+  return (
+    <section>
+      <h2>{product.title}</h2>
+      <p>{product.description}</p>
+    </section>
+  )
+}
+```
+
+and then the same fetch to the **Price** component:
+
+```tsx
+export default async function Price() {
+  const res = await fetch('https://api.example.com/products/2')
+  const product = await res.json()
+
+  return (
+    <section>
+      <h3>Price: {product.price}</h3>
+    </section>
+  )
+}
+```
+
+We are fetching basically the product data to **2 different components by calling the same db fetch call**.
+Shall we make the call on the Home Page and pass as props? **In some cases this would require the unecessary prop drilling.**
+
+By default Next.js and React will however **cache** your calls so this is not duplication.
+
+**BUT REMEMBER** this works for **fetch API**. If you are using the ORM this is not the case. So you would need to use `cache` function from 'react' to reinforce the caching here avoiding the duplicate calls.
+
+```tsx
+import { cache } from 'react'
+
+async function getProduct() {
+  const products = await prisma.products.findMany()
+  return products
+}
+
+export const getProductsCached = cache(getProduct)
+```
+
+alternatively you can check `unstable_cache` from "next/cache":
+
+```tsx
+import { unstable_cache } from 'next/cache'
+
+async function getProduct() {
+  const products = await prisma.products.findMany()
+  return products
+}
+
+export const getProductsCached = unstable_cache(getProduct)
+```
+
+Next.js and React provide several caching mechanisms that can significantly optimize data fetching and reduce redundant requests. Understanding and leveraging these caching strategies, such as HTTP caching with Fetch API, automatic static optimization, ISR and advanced data fetching libraries like React Query and SWR, can help improve the performance and scalability of your Next.js applications.
+
+## ITEM 9: getting "waterfall" effect when fetching data
+
+```tsx
+async function getProduct() {
+  const res = await fetch('https://api.example.com/products/2')
+  const product = await res.json()
+  return product
+}
+
+async function getRatings() {
+  const res = await fetch('https://api.example.com/products/2/ratings')
+  const ratings = await res.json()
+  return ratings
+}
+
+export default async function Home() {
+  const product = await getProduct()
+  const ratings = await getRatings()
+
+  return (
+    <main>
+      <h1>My Store</h1>
+
+      <Product product={product} />
+      <Rating rating={ratings} />
+    </main>
+  )
+}
+```
+
+We have 2 utility functions on the same (Home) level component that pulls the data about the product and about the ratings.
+
+So in this example we need to wait until one request is completed to get started the next request eventually.
+
+**(!)Ideally** to avoid the waterfall effect we prefer to fetch all these data at once (in parallel).
+
+**How?**
+
+```tsx
+async function getProduct() {
+  const res = await fetch('https://api.example.com/products/2')
+  const product = await res.json()
+  return product
+}
+
+async function getRatings() {
+  const res = await fetch('https://api.example.com/products/2/ratings')
+  const ratings = await res.json()
+  return ratings
+}
+
+export default async function Home() {
+  const [product, ratings] = await Promise.all([getProduct(), getRatings()])
+
+  return (
+    <main>
+      <h1>My Store</h1>
+
+      <Product product={product} />
+      <Rating rating={ratings} />
+    </main>
+  )
+}
+```
+
+One of the potential issues here is that if `Promise.all` fails in one of the calls it rejects the further ones. There is also `Promise.allSettled` that could help avoiding that issue.
+
+### Let's dive into the details
+
+The waterfall effect in data fetching occurs when requests are made sequentially, with each request waiting for the previous one to complete before starting. This can significantly increase the total time taken to fetch all the data. Leveraging `Promise.all` can help mitigating this by running multiple asynchronous operations in parallel, improving performance and reducing latency.
+
+**Sequential Data Fetching:**when data fetching is done sequentially, each request waits for the previous one to complete. This can be inefficient, especially if the requests are independent of each other.
+
+Using `Promise.all` to fetch data in parallel is an effective way to mitigate the waterfall effect and improve performance in Next.js application. By making parallel requests, you can reduce latency, improve load times, and enhance the user experience. Additionally, using `Promise.allSettled` can help manage errors more gracefully, ensuring that your application remains robust and resilient even when some requests fail.
+
+## ITEM 10: You CAN use server actions in client components
+
+You can use **server actions** in client components:
+
+```tsx
+'use client'
+
+import { addProduct } from '@/actions/actions'
+import { HeartFilledIcon, HeartIcon } from '@heroicons/react/20/solid'
+import { useState } from 'react'
+
+export default function LovelyButton() {
+  const [liked, setLiked] = useState(false)
+
+  return (
+    <button
+      className="rounded-md bg-zinc-300 p-2"
+      onClick={async () => {
+        await addProduct('superProduct')
+      }}
+    >
+      {liked ? <HeartFilledIcon /> : <HeartIcon />}
+    </button>
+  )
+}
+```
+
+## ITEM 11: Don't be confused when the page doesn't reflect the data mutation
+
+If you want to make sure you udpate the UI, you can use `revalidatePath()`
+
+```tsx
+'use server'
+
+import prisma from '@/lib/db'
+import { revalidatePath } from 'next/cache'
+
+export async function addProduct(formData: FormData) {
+  await prisma.product.create({
+    data: {
+      name: formData.get('name'),
+      price: Number(formData.get('price')),
+    },
+  })
+
+  revalidatePath('/products')
+}
+```
+
+## ITEM 12: Using `redirect()` in try/catch block
+
+Be careful with `redirect("/create-product")` here as Next.js will throw an error once redirect is triggered and once the error is triggered it is caught by **catch block**.
+
+```tsx
+import { redirect } from 'next/navigation'
+
+export default async function Product() {
+  let product
+
+  try {
+    const res = await fetch('https://api.example.com/products')
+    product = await res.json()
+
+    if (!product) {
+      redirect('/create-product') // ?? this will throw an error
+    }
+  } catch (error) {
+    console.error(error)
+  }
+
+  return (
+    <section>
+      <h2>{product.title}</h2>
+      <p>{product.description}</p>
+    </section>
+  )
+}
+```
+
+Make sure then you use the redirect outside the **try/catch** structure.
+
+```tsx
+import { redirect } from 'next/navigation'
+
+export default async function Product() {
+  let product
+
+  try {
+    const res = await fetch('https://api.example.com/products/3')
+    product = await res.json()
+  } catch (error) {
+    console.error(error)
+  }
+  if (!product) {
+    redirect('/create-product') // this will work
+  }
+
+  return (
+    <section>
+      <h2>{product.title}</h2>
+      <p>{product.description}</p>
+    </section>
+  )
+}
+```
+
+Happy coding!
+
+Piotr

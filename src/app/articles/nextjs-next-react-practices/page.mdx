@@ -1,0 +1,615 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/best_practices.jpeg'
+import Image_2 from '@/images/blog/p24_02.webp'
+
+export const article = {
+  author: 'Piotr',
+  date: '2024-10-10',
+  tags: ['Next.js/JS'],
+  title:
+    'Some of the little tips & best practices for React/Next.js developers',
+  description:
+    "In this article, I will share some simple yet highly productive practices for anyone working with React and Next.js. While this isn't an exhaustive list, it addresses some of the most common questions and challenges I've encountered across various projects and forums.",
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+## Introduction
+
+I am sharing here some of the simple yet productive practices for anyone working with React/Next.js. This is not an exhaustive list, but it covers some of the most common questions I have encountered across various projects and forums.
+
+<Image src={Image_1} width={800} height={400} alt="" />
+
+## 1 - Avoid Hardcoded Values
+
+Defining all hardcoded values in one place enhances the maintainability and scalability of your application. It makes updating these values easier later on, especially when they are used in multiple locations. You can create a separate file (e.g., constants.js or config.js) to store all your constants and import them wherever needed.
+
+**Example:**
+
+Create a `constants.js` file:
+
+```js
+// constants.js
+export const MAX_TODOS = 3
+```
+
+Use it in your component:
+
+```js
+// TodoComponent.js
+import { MAX_TODOS } from './constants'
+
+if (todos.length === MAX_TODOS && !isAuthenticated) {
+  alert(`You need to sign in to add more than ${MAX_TODOS} todos.`)
+  return
+}
+```
+
+## 2 - Best Practice for Folder Structure
+
+**Don't stress too much about finding the perfect folder structure.** While there's no one-size-fits-all solution, the most important thing is to keep your folder organization consistent throughout the project. Consistency aids maintainability and helps team members navigate the codebase more efficiently.
+
+**Why Consistency Matters:**
+
+- **Ease of Navigation:** A consistent structure allows developers to find files quickly without confusion.
+- **Team Collaboration:** It ensures that everyone on the team is on the same page, reducing misunderstandings.
+- **Scalability:** As your project grows, a consistent structure makes it easier to manage and extend.
+
+**Tips for Maintaining Consistency:**
+
+- **Choose a structure early:** Decide on a folder organization strategy at the beginning of the project.
+- **Document the structure:** Create a document outlining the folder structure and share it with the team.
+- **Regularly review and update:** Periodically review the structure to ensure it meets the project's needs.
+- **Use Naming Convention:** Follow a consistent naming convention for folders and files.
+- **Leverage Tools:** Use tools like ESLint and Prettier to enforce consistency.
+
+**Final Thoughts:**
+
+There's no definitive **"best"** folder structure in React or Next.js projects. What matters most is that the structure you choose makes sense for your project's specific requirements and that everyone working on the project adheres to it. This collective consistency will contribute significantly to a smooth development process and a maintainable codebase.
+
+## 3 - When to Create Components?
+
+A good rule of thumb is to create a new component **whenever you notice a piece of code repeated more than once.** This approach enhances the readability and maintainability of your code.
+
+**Why Create New Components?**
+
+- **Reusability:** Components can be reused across different parts of your application.
+- **Modularity:** Breaking down your UI into components makes it easier to manage and update.
+- **Readability:** Smaller components are easier to understand and debug.
+
+**When?**
+
+1. **Repeated Code:** If you find yourself copying and pasting the same code in multiple places, it's time to create a component.
+
+```jsx
+// Before: Repeating code
+<button className="btn btn-primary" onClick={handleSubmit}>
+  Submit
+</button>
+// ...
+<button className="btn btn-primary" onClick={handleSave}>
+  Save
+</button>
+
+```
+
+```jsx
+// After: Using a reusable component
+<PrimaryButton onClick={handleSubmit}>Submit</PrimaryButton>
+// ...
+<PrimaryButton onClick={handleSave}>Save</PrimaryButton>
+
+```
+
+```jsx
+// PrimaryButton.js
+export function PrimaryButton({ onClick, children }) {
+  return (
+    <button className="btn btn-primary" onClick={onClick}>
+      {children}
+    </button>
+  )
+}
+```
+
+2. **Complex Logic or Rendering:**
+
+When a piece of your UI involves complex logic or rendering, extracting it into a component can simplify your main component.
+
+```jsx
+// After: Extracted into a separate component
+function Dashboard() {
+  return (
+    <div>
+      {/* ...other components... */}
+      <Chart data={data} />
+      {/* ...other components... */}
+    </div>
+  )
+}
+
+// Chart.js
+export function Chart({ data }) {
+  // Complex chart rendering logic
+  return <div className="chart">{/* Render chart with data */}</div>
+}
+```
+
+3. **Different Variations of a Component:**
+
+```jsx
+// Badge.js
+export function Badge({ type, text }) {
+  return <span className={`badge badge-${type}`}>{text}</span>;
+}
+
+// Usage
+<Badge type="success" text="Active" />
+<Badge type="warning" text="Pending" />
+
+```
+
+**BEST PRACTICES:**
+
+- **Single Responsibility Principle:** Each component should have a single responsibility, making it easier to maintain and reuse.
+
+- **Prop Validation**:
+
+  - Use PropTypes or TypeScript to validate props passed to components.
+  - This helps catch errors early and ensures that components receive the correct data.
+
+- **Avoid Premature Optimization:** Don't create components for the sake of it. If a piece of code is only used once and isn't overly complex, it might not need to be a separate component.
+
+- **Naming Conventions:** Use clear and descriptive names for your components to make their purpose obvious.
+
+## 4 - Avoid Unnecessary Markup (divs, spans, etc.)
+
+Keeping your markup as clean and minimal as possible is crucial for creating efficient and maintainable React and Next.js applications. **Avoid adding unnecessary `div`, `span`, or other elements that do not contribute meaningfully to your application's structure or functionality.**
+
+```jsx
+export default function Btn() {
+  return (
+    <div>
+      <button>Click me</button> // unnecessary div
+    </div>
+  )
+}
+```
+
+**Why This Matters:**
+
+- **Improved Performance**: Fewer DOM nodes lead to better rendering performance, which is especially in large or complex applications.
+
+- **Cleaner Codebase**: Minimal and meaningful markup makes your code easier to read, understand, and maintain.
+
+- **Enhanced Accessibility**: Simplifying your DOM structure can improve accessibility for users relying on assistive technologies.
+
+- **Simplified Styling**: Reducing unnecessary nesting can make CSS selectors simpler and more efficient.
+
+## 5 - Don't Add Layout Styles Directly to Your Reusable Components
+
+When building reusable components in React or Next.js, it is important to keep them flexible and adaptable to different contexts. **Avoid hardcoding layout-specific styles (like margins, paddings, flex properties) directly into your reusable components.**
+Instead, allow these components to accept styles or class names as props so that you can control their layout from the parent components where they are used.
+
+**Why This Matters:**
+
+- **Flexibility**: Components can be used in various layouts without being tied to a specific design.
+- **Reusability**: Components can adapt to different styling requirements based on where they are used.
+- **Separation of Concerns**: Keeps layout and styling concerns separate from the component logic.
+
+```tsx
+export default async function EventsPage({ params }: EventsPageProps) {
+  return (
+    <div className="flex min-h-[110vh] flex-col items-center px-[20px] py-24">
+      <h1>Events</h1>
+      <EventList events={events} />
+    </div>
+  )
+}
+```
+
+I think that a better solution would be to pass `className` as a prop to the `EventList` component so we can dynamically add styles to it.
+
+```tsx
+import { cn } from '@/lib/cn'
+
+type H1Props = {
+  children: React.ReactNode
+  className?: string
+}
+
+export default function H1({ children, className }: H1Props) {
+  return <h1 className={cn('text-2xl font-bold', className)}>{children}</h1>
+}
+```
+
+## 6 - Keep Components "Dumb" - As Simple as Possible
+
+In React and Next.js development, it's advantageous to keep your components as simple and focused as possible. **"Dumb" components, also known as presentational components, should primarily handle rendering UI elements and accepting props.** They should not contain complex logic or side effects.
+
+In this example, the `StatusBar` component calculates the `progressPercentage` internally, mixing business logic with UI rendering. By moving the calculation of `progressPercentage` out of the `StatusBar` component, we can keep it focused solely on rendering the UI.
+
+```tsx
+export default function StatusBar({ progressPercentage }: StatusBarProps) {
+  return (
+    <div className="h-4 w-full bg-gray-200">
+      <div
+        className="h-full bg-green-500"
+        style={{ width: `${progressPercentage}%` }}
+      />
+    </div>
+  )
+}
+```
+
+**Some of the best practices:**
+
+1. Use **Container** and **Presentational** Components:
+
+- **Container Components**: Handle logic, data fetching, and state management.
+- **Presentational Components**: Focus on rendering UI elements and accepting props.
+
+```tsx
+// ContainerComponent.tsx
+
+import StatusBar from './StatusBar'
+
+export default function ContainerComponent() {
+  const [currentProgress, setCurrentProgress] = useState(30)
+  const total = 100
+  const progressPercentage = (currentProgress / total) * 100
+
+  return <StatusBar progressPercentage={progressPercentage} />
+}
+```
+
+2. Leverage **Custom Hooks** for Logic:
+
+- Extract reusable logic into custom hooks to keep components clean and focused.
+
+```tsx
+// useProgress.ts
+export function useProgress(currentProgress: number, total: number) {
+  return (currentProgress / total) * 100
+}
+
+// ParentComponent.tsx
+import { useProgress } from './useProgress'
+import StatusBar from './StatusBar'
+
+export default function ParentComponent({
+  currentProgress,
+  total,
+}: ParentProps) {
+  const progressPercentage = useProgress(currentProgress, total)
+
+  return <StatusBar progressPercentage={progressPercentage} />
+}
+```
+
+3. Avoid State in Presentational Components:
+
+- Keep presentational components stateless and pass data as props from container components.
+
+## 7 - Use `children` to avoid props drilling
+
+**Prop drilling** occurs when you pass data through multiple layers of components to reach a deeply nested component. This can make your code less readable and harder to maintain. One way to mitigate prop drilling is by leveraging the `children` prop in React. The `children` prop allows you to pass components directly to other components, enabling you to compose your UI more flexibly and avoid passing props through components that don't need them.
+
+By using the `children` prop, you can pass components directly to the `ParentComponent` without having to pass them through the `ChildComponent`.
+
+```tsx
+// App.js
+function App() {
+  const user = { name: 'John Doe' }
+  return (
+    <Parent>
+      <Grandchild user={user} />
+    </Parent>
+  )
+}
+
+// Parent.js
+function Parent({ children }) {
+  return <div>{children}</div>
+}
+
+// Grandchild.js
+function Grandchild({ user }) {
+  return <div>Hello, {user.name}!</div>
+}
+```
+
+Now, the `user` prop is passed directly to `Grandchild` and `Parent` doesn't need to pass it down explicitly.
+
+## 8 - Consider Using `useMemo` and `useCallback` for Performance Optimization
+
+When building React applications, performance optimization becomes crucial as your app scales. `useMemo` and `useCallback` are two hooks that can help optimize your components by memoizing values and functions, respectively.
+
+**Understanding `useMemo` and `useCallback`**
+
+- **`useMemo`**: Memoizes the result of a function and returns the cached value when the dependencies don't change.
+
+- **`useCallback`**: Returns a memoized version of a callback function that only changes if one of the dependencies has changed. It's beneficial when passing callbacks to optimized child components that rely on reference equality to prevent unnecessary renders.
+
+**When to Use `useMemo`**
+
+Use `useMemo` when you have expensive computations that don't need to run on every render unless their dependencies change.
+
+Example:
+
+```tsx
+import React, { useMemo } from 'react'
+
+function ExpensiveComponent({ items }) {
+  const total = useMemo(() => {
+    // Assume calculateTotal is a computationally expensive function
+    return calculateTotal(items)
+  }, [items])
+
+  return <div>Total: {total}</div>
+}
+
+function calculateTotal(items) {
+  // Simulate an expensive calculation
+  return items.reduce((sum, item) => sum + item.value, 0)
+}
+```
+
+In this example, `calculateTotal(items)` is only recalculated when the `items` prop changes, saving unnecessary computations on re-renders.
+
+**When to Use `useCallback`**
+
+Use `useCallback` when you need to prevent a function from being recreated on every render, especially when passing it to child components that are optimized with `React.memo`.
+
+Example:
+
+```tsx
+import React, { useState, useCallback } from 'react'
+import List from './List'
+
+function ParentComponent() {
+  const [items, setItems] = useState([])
+
+  const addItem = useCallback(() => {
+    setItems((prevItems) => [...prevItems, 'New Item'])
+  }, [])
+
+  return (
+    <div>
+      <button onClick={addItem}>Add Item</button>
+      <List items={items} onAddItem={addItem} />
+    </div>
+  )
+}
+
+// List.js
+import React from 'react'
+
+const List = React.memo(({ items, onAddItem }) => {
+  console.log('Rendering List')
+  return (
+    <ul>
+      {items.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+      <button onClick={onAddItem}>Add Item from List</button>
+    </ul>
+  )
+})
+
+export default List
+```
+
+Without `useCallback`, the `addItem` would be recreated on every render, causing `List` to re-render unnecessarily even if `items` didn't change. By memoizing `addItem` with `useCallback`, `List` only re-renders when necessary.
+
+## 9 - Keep Track of Active or Selected Item by its ID, Don't Duplicate the Whole Object
+
+When managing state in React components, it's important to avoid duplicating entire objects in your state to keep track of active or selected items. **Instead, store the unique identifier (ID) ot the item**. This practice reduces errors, prevents data inconsistencies, and simplifies state management.
+
+**Incorrect Approach** - Duplicating the whole object in state:
+
+```jsx
+function ItemList({ items }) {
+  const [selectedItem, setSelectedItem] = useState(null)
+
+  const handleSelect = (item) => {
+    setSelectedItem(item) // Storing the entire item object
+  }
+
+  return (
+    <ul>
+      {items.map((item) => (
+        <li
+          key={item.id}
+          onClick={() => handleSelect(item)}
+          className={
+            selectedItem && selectedItem.id === item.id ? 'active' : ''
+          }
+        >
+          {item.name}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+**Correct Approach** - Storing the ID of the Selected Item:
+
+```jsx
+function ItemList({ items }) {
+  const [selectedItemId, setSelectedItemId] = useState(null)
+
+  const handleSelect = (id) => {
+    setSelectedItemId(id) // Storing only the item's ID
+  }
+
+  const selectedItem = useMemo(
+    () => items.find((item) => item.id === selectedItemId),
+    [items, selectedItemId],
+  )
+
+  return (
+    <div>
+      <ul>
+        {items.map((item) => (
+          <li
+            key={item.id}
+            onClick={() => handleSelect(item.id)}
+            className={selectedItemId === item.id ? 'active' : ''}
+          >
+            {item.name}
+          </li>
+        ))}
+      </ul>
+      {selectedItem && (
+        <div className="item-details">
+          <h2>{selectedItem.name}</h2>
+          <p>{selectedItem.description}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+**Benefits of this approach:**
+
+- **Data Consistency**: The `selectedItem` is always in sync with the latest data in `items`.
+
+- **Simplified Comparisons**: Comparing IDs is more efficient than comparing entire objects.
+
+- **Reduced Memory Footprint**: Only the necessary data (the ID) is stored in state.
+
+## 10 - Put Data Like Filters, Variants, and Pagination in the URL, Not in `useState`
+
+When building web applications with React and Next.js it is important to manage state in a way that enhances user experience and application functionality. **Storing data such as filters, variants, and pagination in the URL query parameters rather than in local component state `useState` offers several benefits,** including better usability, shareability, and browser navigation support.
+
+Why Store State in the URL?
+
+- **Shareability**: Users can share the URL with others, preserving the exact state of the page, including applied filters and pagination.
+- **Bookmarking**: Users can bookmark the page and return to the same state later.
+- **Browser Navigation**: The back and forward buttons work as expected, allowing users to navigate through their history of applied filters or paginated pages.
+- **SEO Benefits**: For public pages, search engines can index different states of your page if filters are included in the URL.
+- **Server-Side Rendering (SSR): **Next.js can fetch data based on URL parameters during SSR, improving performance and SEO.
+
+Example Scenario:
+
+Consider a product listing page where users can apply filters (e.g., category, price range), select variants, or navigate through pages.
+
+**Incorrect Approach** - Using `useState` to manage filters and pagination:
+
+```jsx
+// ProductsPage.js
+import { useState, useEffect } from 'react'
+
+function ProductsPage() {
+  const [filters, setFilters] = useState({
+    category: 'all',
+    priceRange: [0, 100],
+  })
+  const [products, setProducts] = useState([])
+
+  useEffect(() => {
+    // Fetch products based on filters
+    fetch(
+      `/api/products?category=${filters.category}&minPrice=${filters.priceRange[0]}&maxPrice=${filters.priceRange[1]}`,
+    )
+      .then((res) => res.json())
+      .then((data) => setProducts(data))
+  }, [filters])
+
+  // Handler to update filters
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters)
+  }
+
+  return (
+    <div>
+      <Filters onChange={handleFilterChange} />
+      <ProductList products={products} />
+    </div>
+  )
+}
+```
+
+**Issues with this approach:**
+
+- The current filters are not reflected in the URL.
+- Users cannot share or bookmark the page with the applied filters.
+- Browser back and forward buttons do not navigate through filter changes.
+
+**Correct Approach** - Storing filters in the URL:
+
+```jsx
+// ProductsPage.js
+import { useRouter } from 'next/router'
+import { useEffect, useState } from 'react'
+
+function ProductsPage() {
+  const router = useRouter()
+  const { query } = router
+  const [products, setProducts] = useState([])
+
+  useEffect(() => {
+    // Extract filters from the query parameters
+    const { category = 'all', minPrice = '0', maxPrice = '100' } = query
+
+    // Fetch products based on filters
+    fetch(
+      `/api/products?category=${category}&minPrice=${minPrice}&maxPrice=${maxPrice}`,
+    )
+      .then((res) => res.json())
+      .then((data) => setProducts(data))
+  }, [query])
+
+  // Handler to update filters
+  const handleFilterChange = (newFilters) => {
+    router.push({
+      pathname: '/products',
+      query: { ...query, ...newFilters },
+    })
+  }
+
+  return (
+    <div>
+      <Filters currentFilters={query} onChange={handleFilterChange} />
+      <ProductList products={products} />
+    </div>
+  )
+}
+```
+
+**Benefits of this approach:**
+
+- **Fetching Filters from the URL**:
+
+  - The `useRouter` hook provides access to the URL query parameters, allowing you to fetch filters directly from the URL.
+  - Default values are provided in case the query parameters are not present.
+
+- **Updating Filters in the URL**:
+
+  - When filters change, the `handleFilterChange` function updates the URL query parameters using `router.push`.
+  - The page automatically re-renders based on the updated query parameters.
+
+- **Fetching Data**:
+  - The `useEffect` hook listens to changes in the `query` object and fetches new data accordingly.
+
+**Advantages Over `useState`:**
+
+- **Persistence**: State stored in useState is lost on page refresh or direct URL access, whereas URL parameters persist.
+
+- **User Control**: Users can manually adjust the URL parameters if needed.
+
+- **Debugging**: It's easier to debug and replicate issues when the application's state is reflected in the URL.
+
+**Potential Considerations:**
+
+- **URL Length Limits**: Be cautious of exceeding URL length limits, especially when storing large amounts of data.
+- **Privacy Concerns**: Avoid storing sensitive information in the URL, as it can be logged or shared unintentionally.
+
+
+Happy coding!
+
+Piotr
