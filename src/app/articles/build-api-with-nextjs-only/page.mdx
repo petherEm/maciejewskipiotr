@@ -1,0 +1,412 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/distances_1.jpeg'
+
+export const article = {
+  author: 'Piotr',
+  date: '2025-04-15',
+  tags: ['Next.js/JS'],
+  title: 'Build the API with Next.js only',
+  description:
+    'With Next.js 15, you can build a full-featured API without a separate backend by combining Route Handlers for REST endpoints, Server Actions for secure mutations, and Middleware for cross-cutting concerns.',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+
+
+With Next.js 15, you can build a full-featured API without a separate backend by combining Route Handlers for REST endpoints, Server Actions for secure mutations, and Middleware for cross-cutting concerns. This keeps your data on the server, taps into built-in caching and revalidation, and deploys as scalable serverless/edge functions by default. 
+
+
+
+## Why (and When) to Build APIs with Next.js
+
+### 1 - Public API for Multiple Client
+
+Expose a shared API that serves your Next.js web app, a mobile app, or approved third-party consumers. For example, both your React website and React Native app can fetch from `/api/users`.
+
+
+### 2 - Proxy to an Existing Backend
+
+Use Route Handlers as thin proxy to consolidate microservices behind a single endpoint. Intercept requests to add auth, validation, rate limiting, or response shaping, then forward to the upstream service. 
+
+
+### 3 - Webhooks and Integrations
+
+Handle incoming webhooks (e.g. Stripe, GitHub, Twilio) directly in Route Handlers. Verify signatures, parse payloads, and trigger downstream work (DB writes, queues, emails).
+
+### 4 - Custom Authentication
+
+Implement sessions or tokens in your API layer. Read headers/cookies, issue or rotate tokens, and return user/session data. Pair with Middleware for cross-cutting checks. 
+
+> **Important:** If data is used **only by your own Next.js app**, you may not need a separate API. **Server Components** can fetch data during render, and **Server Actions** can handle mutations—keeping logic server-side without extra endpoints.
+
+
+## Multiple HTTP Methods in One File
+
+
+In the App Router, a single route file can handle multiple HTTP methods. Instead of one default export, you export one function per method (e.g. GET, POST, PATCH, DELETE) from the same file:
+
+`app/api/users/route.ts`
+
+```ts
+
+import { NextResponse } from "next/server";
+
+// GET /api/users
+export async function GET() {
+  const users = [
+    { id: 1, name: "Alice" },
+    { id: 2, name: "Bob" },
+  ];
+
+  return NextResponse.json(users, { status: 200 });
+}
+
+// POST /api/users
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const name = String(body?.name ?? "").trim();
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    // In real apps, create in DB instead of Date.now()
+    const newUser = { id: Date.now(), name };
+    return NextResponse.json(newUser, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+}
+
+```
+
+How it works
+
+- `GET /api/users`-> returns the users list
+- `POST /api/users` => with `{"name": "Charlie"}` -> creates and returns a new user
+
+**Tip:** You can add more handlers (PATCH, DELETE, OPTIONS for CORS) in the same file.
+
+## Working with Web APIs
+
+
+In Route Handlers, your method functions (GET, POST, etc.) receive a request and must return a response. You can use the Web-standard `Request/Response`, or Next.js helpers `NextRequest/NextResponse`.
+
+**OPTION A - Use NextRequest + NextResponse (typed & convenient)**
+
+
+`NextRequest` extends the Web `Request` with Next.js niceties like `nextUrl` (a parsed URL) and typed `cookies` helper. `NextResponse` provides shortcuts like `json().`
+
+```ts
+
+// app/api/search/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export function GET(request: NextRequest) {
+  const query = request.nextUrl.searchParams.get("query") ?? ""; // /api/search?query=hello
+  return NextResponse.json({ result: `You searched for: ${query}` });
+}
+
+```
+
+
+**OPTION B - use plain Web Request/Response (standards-only)**
+
+You don't have to use `NextRequest`. With the standard `Request`, parse the URL yourself:
+
+```ts
+
+// app/api/search/route.ts
+export function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get("query") ?? "";
+  return new Response(JSON.stringify({ result: `You searched for: ${query}` }), {
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+```
+
+Why important `NextRequest`? 
+
+- Type safety & DX: Strong typing for `request` (better IntelliSense/autocomplete).
+- Convenience: Access `request.nextUrl` directly (no manual `new URL(...)`)
+- Next.js features: Typed helpers (e.g., `request.cookies`) and integration with Next.js runtimes.
+
+
+## Dynamic Routes
+
+
+To create dynamic paths (e.g. `/api/users/:id`), use Dynamic Segments in your folder structure:
+
+
+```bash
+
+app
+└── api
+    └── users
+        └── [id]
+            └── route.ts
+            
+```
+
+
+`app/api/users/[id]/route.ts`
+
+```ts
+
+import { NextRequest, NextResponse } from "next/server";
+
+type RouteContext = { params: { id: string } };
+
+// GET /api/users/123
+export async function GET(_req: NextRequest, { params }: RouteContext) {
+  const { id } = params;
+
+  // In real apps: fetch from DB by `id`
+  const user = { id, name: `User ${id}` };
+
+  // Example not-found branch:
+  // if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  return NextResponse.json(user, { status: 200 });
+}
+
+// DELETE /api/users/123
+export async function DELETE(_req: NextRequest, { params }: RouteContext) {
+  const { id } = params;
+
+  // In real apps: delete in DB by `id`, handle missing records, auth, etc.
+  // if (!deleted) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  return new NextResponse(null, { status: 204 }); // No Content
+}
+
+```
+
+
+**Key points:**
+
+- `params` is **not a Promise**—you don’t `await` it. It’s passed synchronously as `{ params: { id: string } }`.
+    
+- Prefer `NextResponse.json()` for JSON responses.
+    
+- For more complex patterns:
+    
+    - **Catch-all:** `app/api/users/[...slug]/route.ts` → `/api/users/a/b/c`
+        
+    - **Optional catch-all:** `app/api/users/[[...slug]]/route.ts` → `/api/users` or deeper paths
+        
+
+> Tip: Validate `params.id` (e.g., ensure it’s a UUID/number) before touching your database, and return `400` for invalid ids, `404` for missing records.
+
+
+## Using Next.js as a Proxy / Forwarding Layer
+
+A common pattern is using Route Handlers as a BFF (Backend-for-Frontend) - authenticate, log, or transform data, then forward to an upstream API. Your clients only call `/api/external`. Next.js handles the rest.
+
+```ts
+
+// app/api/external/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+const UPSTREAM = "https://example.com/api/data";
+
+// GET /api/external?query=hello
+export async function GET(request: NextRequest) {
+  // Forward query string to upstream
+  const url = new URL(UPSTREAM);
+  request.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v));
+
+  const upstream = await fetch(url, {
+    headers: {
+      // Forward only what you need; avoid blindly proxying all headers
+      Authorization: `Bearer ${process.env.API_TOKEN!}`,
+      "X-Client": "next-bff",
+    },
+    cache: "no-store", // proxies are usually dynamic
+  });
+
+  // Gracefully pass through upstream status
+  const payload = await upstream.json().catch(() => null);
+  if (!upstream.ok) {
+    return NextResponse.json(
+      { error: "Upstream error", status: upstream.status, payload },
+      { status: upstream.status }
+    );
+  }
+
+  // Optional transform before returning
+  const transformed = { ...payload, source: "proxied-through-nextjs" };
+  return NextResponse.json(transformed);
+}
+
+// POST /api/external
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+
+  const upstream = await fetch(UPSTREAM, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.API_TOKEN!}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  // Pass through status; keep body JSON
+  const payload = await upstream.json().catch(() => ({}));
+  return NextResponse.json(payload, { status: upstream.status });
+}
+
+
+```
+
+**Key points:**
+
+- **Don’t leak secrets:** Keep tokens in env vars; never expose them to the client.
+    
+- **Headers:** Forward only specific headers (auth, correlation IDs). Avoid `Host`, `Connection`, etc.
+    
+- **Caching:** Use `cache: "no-store"` (or `next: { revalidate: 0 }`) for dynamic proxies.
+    
+- **Timeouts:** Consider an `AbortController` to fail fast on slow upstreams.
+    
+- **Streaming passthrough:** For large files, you can return the raw stream:
+
+
+## Building Shared "Middleware"-like Logic (Wrappers)
+
+When you want to reuse logic such as **auth checks, logging, or rate limiting** across many Route Handlers, create higher-order handlers (wrappers) that decorate your method functions.
+
+> **Note:** This is different from `middleware.ts` (the Edge middleware that runs **before** routing). Use `middleware.ts` for cross-cutting concerns like redirects/CORS; use wrappers when you need full request access (body, DB calls) inside the route handler.
+
+
+**Reusable auth wrapper:**
+`lib/http/with-auth.ts`
+
+```ts
+
+import { NextRequest, NextResponse } from "next/server";
+
+type RouteContext = { params?: Record<string, string> };
+type Handler = (req: NextRequest, ctx: RouteContext) => Response | Promise<Response>;
+
+export function withAuth<T extends Handler>(handler: T): Handler {
+  return async (req, ctx) => {
+    const token = req.cookies.get("token")?.value;
+
+    // TODO: verify token properly (e.g., JWT signature/JWKS or a session lookup)
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return handler(req, ctx);
+  };
+}
+
+```
+
+
+## When to Skip Creating an API Endpoint
+
+With the App Router's React Server Components (RSC) you can fetch data directly on the server during render - no public endpoint needed.
+
+```ts
+
+// app/users/page.tsx  (Server Component)
+type User = { id: number; name: string };
+
+export default async function UsersPage() {
+  const res = await fetch("https://api.example.com/users", {
+    // choose one strategy:
+    // cache: "no-store",                 // always fresh
+    next: { revalidate: 60 },            // ISR: revalidate every 60s
+  });
+
+  if (!res.ok) {
+    // keep error handling server-side
+    throw new Error("Failed to load users");
+  }
+
+  const data = (await res.json()) as User[];
+
+  return (
+    <main>
+      <h1>Users</h1>
+      <ul>
+        {data.map((user) => (                {/* fixed: user, not users */}
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+
+```
+
+If your data is only used **inside your Next.js app, you often don't need a separate API.** You can even skip HTTP entirely and query your database/services directly in the Server Component:
+
+```tsx
+// app/users/page.tsx
+import { listUsers } from "@/lib/repositories/user.repo"; // your DAL
+
+export default async function UsersPage() {
+  const users = await listUsers(); // direct server-side call (no HTTP hop)
+  return (
+    <main>
+      <h1>Users</h1>
+      <ul>
+        {users.map((u) => (
+          <li key={u.id}>{u.name}</li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+
+```
+
+**Key points:**
+
+- Use RSC fetch / direct DB calls for internal reads.
+- Use Server Actions for internal writes (mutations).
+- Add public API routes only when you must share data with external clients (mobile apps, partners) or need a BFF/proxy boundary
+
+## Summary
+
+1. Create a new Next.js project with API boilerplate: `npx create-next-app@latest --api`
+2. or add Route Handlers yourself under `app/` directory (e.g. `app/api/users/route.ts`)
+3. Export HTTP methods (GET, POST, PUT, DELETE, etc.) from the same file.
+4. Use Web APIs to read the request and return a response `Request/Response` - or use `NextReques/NextResponse` for DX helpers like `nextUrl`, `cookies`, and `json()`.
+5. Build a public API when you need other clients (mobile/partners) to consume your data, or when proxying an existing backend (BFF pattern).
+6. Fetch your API routes from the client (Client Components or `fetch('/api/...')`.
+7. Skip creating an API when a Server Component can fetch data directly on the server for your own app.
+8. Extract shared "middleware-like" wrappers (e.g. `withAuth()` / `withLogger()`) for repeated logic across handlers. 
+9. Deploy on a Node.js-capable runtime for server features (or export statically if you only need a SPA).
+
+**What this unlocks?**
+
+- Build a public API for web, mobile, and third parties.
+- Proxy/transform calls to external services with a BFF layer.
+- Share reusable wrappers for auth, logging, rate limiting, etc. 
+- Use dynamic routing via segment folders like `[id]`.
+
+
+**Server Actions (where they fit)**
+
+Think of Server Actions as call-from-React functions that run on the server and are ideal for mutations (create/update/delete). You invoke them like normal JS functions from your components - no manual `fetch` or API route needed. 
+
+- There's still a network request under the hood, but you don't manage it yourself.
+- The action is exposed under an opaque, framework-managed endpoint, not intended for manual calling.
+- For shared logic, put your core reads/writes in **Data Access Layer (DAL)** and call the same DAL from both **Server Actions and API routes.** This keeps behavior consistent whether you expose a public API or not.
+
+
+
+
+Happy coding :) 
+
+Piotr

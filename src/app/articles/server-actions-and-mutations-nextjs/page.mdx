@@ -1,0 +1,287 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+import Image from 'next/image'
+import Image_1 from '@/images/blog/distances_1.jpeg'
+
+export const article = {
+  author: 'Piotr',
+  date: '2025-08-10',
+  tags: ['Next.js/JS'],
+  title: 'Server Actions and Mutations with Next.js 15',
+  description:
+    'Server Actions, as special asynchronous functions, are a powerful tool that always run on the server. They streamline tasks like form submissions, database updates, or API calls, eliminating the need for a separate API route. ',
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+
+**Server Actions**, as special asynchronous functions, are a powerful tool that always run on the **server**. They streamline tasks like form submissions, database updates, or API calls, eliminating the need for a separate API route. The significant advantage is the direct integration with React components—whether they’re **Server Components** or **Client Components-empowering you to handle complex tasks with ease**.
+
+
+### How to Define a Server Action
+
+To mark a function as a Server Action, you use the React directive "use server". There are two common ways to do this:
+
+- Place `"use server"` at the very top of an **async function** to make just that function a Server Action.
+- Place `"use server"` at the top of a file to make **all exports in that file** Server Actions.
+
+
+
+### A Server Action Is a Public Endpoint
+
+
+Even though a Server Action looks like a regular function in your code, it's still exposed as **publicly callable endpoint**. That means anyone could technically call it if they know the route. 
+We should never trust raw input. Always validate and sanitize data before it. 
+
+
+
+```tsx
+
+"use server";
+
+import { z } from "zod";
+
+const formSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+});
+
+export async function submitForm(formData: FormData) {
+  const parsed = formSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+  });
+
+  if (!parsed.success) {
+    throw new Error("Invalid data");
+  }
+
+  // Safe to use parsed.data here
+  // Example: save to DB
+}
+
+```
+
+
+✅ **Takeaway:** Treat your Server Action like any API route. Validate input before using it, so you don’t end up with injection attacks or broken database entries.
+
+
+### Handling Pending States with useTransition
+
+When you call a Server Action from a form, the request is asynchronous — the UI needs to show some kind of **loading or pending state** while waiting for the server to finish.
+
+You _could_ use useState to manage a loading flag, but that’s not the recommended approach in Next.js. Instead, use the useTransition hook.
+
+Why?
+
+- useTransition is specifically designed for handling **async UI updates**.
+- It integrates with React’s concurrent rendering model, keeping the UI responsive.
+- It plays nicely with **revalidatePath()** (or revalidateTag()), so when your Server Action triggers a revalidation, the UI updates correctly.
+
+Here’s a simple example:
+
+```tsx
+
+"use client";
+
+import { useTransition } from "react";
+import { submitForm } from "./actions";
+
+export default function ContactForm() {
+  const [isPending, startTransition] = useTransition();
+
+  async function handleSubmit(formData: FormData) {
+    startTransition(async () => {
+      await submitForm(formData);
+    });
+  }
+
+  return (
+    <form action={handleSubmit}>
+      <input name="name" placeholder="Your name" />
+      <input name="email" type="email" placeholder="Your email" />
+      <button type="submit" disabled={isPending}>
+        {isPending ? "Sending..." : "Send"}
+      </button>
+    </form>
+  );
+}
+
+```
+
+✅ **Takeaway:** Use useTransition for form submissions with Server Actions. It ensures smooth loading states and proper revalidation handling — something useState alone can’t do.
+
+
+### Data Access Layer (DAL): keep mutations isolated and testable
+
+Server Actions should orchestrate the request -> validation -> mutation -> revalidation flow, **not** contain business logic or raw SQL. By pushing data work into a Data Access Layer (DAL), we get clearer code, easier testing, safer transactions, and a single place to enforce rules (uniqueness, idempotency, ownership checks).
+
+**Core principles**
+
+- **Single responsibility:** actions call services; services call repositories; repositories talk to the DB.
+- **Validation at the edge, invariants in the core:** use Zod in the action to validate input; enforce business rules in services.
+- **Transactions for multi-step changes:** keep related writes atomic.
+- **Idempotency for form resubmits:** protect against double-clicks / retries.
+- **Return typed results, not raw DB rows:** map DB to domain types.
+- **No client DB access:** all DB calls stay on the server (repositories/services only).
+
+
+```sql
+app/
+  actions/
+    orders.ts                // orchestrates: validate → service
+lib/
+  services/
+    order.service.ts         // business rules, transactions, idempotency checks
+  repositories/
+    order.repo.ts            // the only layer that touches the ORM/SQL
+  db/
+    client.ts                // Prisma/Drizzle init
+  types/
+    order.ts                 // domain types
+
+```
+
+
+```ts
+
+// app/actions/orders.ts
+
+"use server";
+
+import { z } from "zod";
+import { createOrder } from "@/lib/services/order.service";
+import { revalidatePath } from "next/cache";
+
+const orderSchema = z.object({
+  userId: z.string().uuid(),
+  productId: z.string().uuid(),
+  quantity: z.number().int().positive(),
+  // Optional idempotency key from the client (hidden input or header)
+  idemKey: z.string().min(10).optional(),
+});
+
+export async function createOrderAction(formData: FormData) {
+  const parsed = orderSchema.safeParse({
+    userId: formData.get("userId"),
+    productId: formData.get("productId"),
+    quantity: Number(formData.get("quantity")),
+    idemKey: formData.get("idemKey") ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return { ok: false, error: "Invalid data." };
+  }
+
+  const res = await createOrder(parsed.data);
+
+  if (!res.ok) return { ok: false, error: res.error };
+
+  // Revalidate any pages or layouts that show orders
+  revalidatePath("/orders");
+  return { ok: true, data: res.data };
+}
+
+```
+
+
+```ts
+
+// lib/services/order.service.ts
+
+import { prisma } from "@/lib/db/client";
+import { ensureStock } from "./stock.rules";
+import { findById, create as repoCreate, findByIdemKey } from "@/lib/repositories/order.repo";
+
+type CreateOrderInput = {
+  userId: string;
+  productId: string;
+  quantity: number;
+  idemKey?: string;
+};
+
+export async function createOrder(input: CreateOrderInput) {
+  // Idempotency: if a key exists and we’ve processed it already, return the same result.
+  if (input.idemKey) {
+    const existing = await findByIdemKey(input.idemKey);
+    if (existing) return { ok: true as const, data: existing };
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Business rule example: ensure stock is available
+      await ensureStock(tx, input.productId, input.quantity);
+
+      const order = await repoCreate(tx, {
+        userId: input.userId,
+        productId: input.productId,
+        quantity: input.quantity,
+        idemKey: input.idemKey ?? null,
+        status: "PLACED",
+      });
+
+      // (Optional) log event, decrement stock, enqueue email, etc.
+      return order;
+    });
+
+    return { ok: true as const, data: result };
+  } catch (err: any) {
+    // Map low-level DB errors to user-safe messages
+    if (err.code === "P2002") return { ok: false as const, error: "Duplicate order." };
+    if (err.name === "OutOfStockError") return { ok: false as const, error: "Not enough stock." };
+    return { ok: false as const, error: "Could not create order." };
+  }
+}
+
+```
+
+
+```ts
+// lib/repositories/order.repo.ts
+
+import { Prisma, PrismaClient } from "@prisma/client";
+
+type Tx = PrismaClient | Prisma.TransactionClient;
+
+export function findByIdemKey(idemKey: string, tx?: Tx) {
+  const db = tx as Tx;
+  return db.order.findFirst({ where: { idemKey } });
+}
+
+export function findById(id: string, tx?: Tx) {
+  const db = tx as Tx;
+  return db.order.findUnique({ where: { id } });
+}
+
+export function create(
+  tx: Tx,
+  data: { userId: string; productId: string; quantity: number; status: string; idemKey: string | null }
+) {
+  return tx.order.create({ data });
+}
+
+```
+
+
+```ts
+// lib/services/stock.rules.ts
+
+
+import { Prisma, PrismaClient } from "@prisma/client";
+type Tx = PrismaClient | Prisma.TransactionClient;
+
+export async function ensureStock(tx: Tx, productId: string, qty: number) {
+  const product = await tx.product.findUnique({ where: { id: productId }, select: { stock: true } });
+  if (!product || product.stock < qty) {
+    const e = new Error("OutOfStockError");
+    e.name = "OutOfStockError";
+    throw e;
+  }
+}
+
+
+```
+
+
+Happy coding :)
+
+Piotr

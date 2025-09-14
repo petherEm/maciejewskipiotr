@@ -1,14 +1,15 @@
-import { type Metadata } from 'next'
-import Link from 'next/link'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/Card'
 import { SimpleLayout } from '@/components/SimpleLayout'
-import { type ArticleWithSlug, getAllArticles } from '@/lib/articles'
+import { type ArticleWithSlug } from '@/lib/articles'
 import { formatDate } from '@/lib/formatDate'
 
 function Article({ article }: { article: ArticleWithSlug }) {
   return (
     <article className="md:grid md:grid-cols-4 md:items-baseline">
-      <Card className="md:col-span-3">
+      <Card className="md:col-span-3 !border-0 !shadow-none hover:!shadow-none hover:!translate-y-0">
         <Card.Title href={`/articles/${article.slug}`}>
           {article.title}
         </Card.Title>
@@ -49,25 +50,39 @@ function Article({ article }: { article: ArticleWithSlug }) {
   )
 }
 
-export const metadata: Metadata = {
-  title: 'Articles',
-  description:
-    'All of my long-form thoughts on programming, leadership, product design, and more, collected in chronological order.',
-}
+export default function ArticlesIndex() {
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [articles, setArticles] = useState<ArticleWithSlug[]>([])
+  const [allArticles, setAllArticles] = useState<ArticleWithSlug[]>([])
+  const [tags, setTags] = useState<string[]>([])
 
-export default async function ArticlesIndex({
-  searchParams,
-}: {
-  searchParams: { tag?: string }
-}) {
-  const { tag } = searchParams
-  const articles = await getAllArticles(tag)
+  useEffect(() => {
+    async function loadArticles() {
+      try {
+        const response = await fetch('/api/articles')
+        const allArticlesData: ArticleWithSlug[] = await response.json()
+        const tagsData = Array.from(
+          new Set(allArticlesData.flatMap((article) => article.tags || [])),
+        )
 
-  // Fetch all articles to get all unique tags
-  const allArticles = await getAllArticles()
-  const tags = Array.from(
-    new Set(allArticles.flatMap((article) => article.tags || [])),
-  )
+        setAllArticles(allArticlesData)
+        setTags(tagsData)
+        setArticles(allArticlesData)
+      } catch (error) {
+        console.error('Failed to load articles:', error)
+      }
+    }
+
+    loadArticles()
+  }, [])
+
+  useEffect(() => {
+    if (selectedTag) {
+      setArticles(allArticles.filter((article) => article.tags?.includes(selectedTag)))
+    } else {
+      setArticles(allArticles)
+    }
+  }, [selectedTag, allArticles])
 
   return (
     <SimpleLayout
@@ -77,28 +92,28 @@ export default async function ArticlesIndex({
       <div className="md:border-l md:border-zinc-100 md:pl-6 md:dark:border-zinc-700/40">
         <div className="flex max-w-3xl flex-col space-y-16">
           <div className="mb-4 flex flex-wrap space-x-2">
-            <Link
-              href="/articles"
-              className={`rounded-md px-3 py-1 text-sm font-medium ${
-                !tag
+            <button
+              onClick={() => setSelectedTag(null)}
+              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                !selectedTag
                   ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-100'
               }`}
             >
               All Articles
-            </Link>
+            </button>
             {tags.map((tagItem) => (
-              <Link
+              <button
                 key={tagItem}
-                href={`?tag=${encodeURIComponent(tagItem)}`}
-                className={`rounded-md px-3 py-1 text-sm font-medium ${
-                  tag === tagItem
+                onClick={() => setSelectedTag(tagItem)}
+                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                  selectedTag === tagItem
                     ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                    : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                    : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-600 dark:hover:text-zinc-100'
                 }`}
               >
                 {tagItem}
-              </Link>
+              </button>
             ))}
           </div>
 

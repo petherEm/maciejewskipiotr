@@ -33,7 +33,7 @@ function Tool({
   children: React.ReactNode
 }) {
   return (
-    <Card as="li">
+    <Card as="li" className="!border-0 !shadow-none hover:!shadow-none hover:!translate-y-0">
       <Card.Title as="h3" href={href}>
         {title}
       </Card.Title>
